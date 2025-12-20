@@ -17,7 +17,7 @@ export function Logo({ size = 'md', showText = true, href = '/' }: LogoProps) {
 
   const content = (
     <div className="flex items-center gap-2.5">
-      {/* Icon - Abstract spine/vertebrae representation */}
+      {/* Icon - Professional medical spine representation */}
       <div className={`${sizes[size].icon} relative`}>
         <svg
           viewBox="0 0 40 40"
@@ -25,28 +25,38 @@ export function Logo({ size = 'md', showText = true, href = '/' }: LogoProps) {
           xmlns="http://www.w3.org/2000/svg"
           className="w-full h-full"
         >
-          {/* Background circle */}
-          <circle cx="20" cy="20" r="18" className="fill-blue-600" />
-          
-          {/* Stylized vertebrae/spine design */}
+          {/* Background with medical gradient */}
+          <circle cx="20" cy="20" r="18" className="fill-teal-600" />
+
+          {/* Enhanced spine design with multiple vertebrae */}
+          {[0, 8, 16, 24, 32].map((y, i) => (
+            <g key={i} className={i === 2 ? 'opacity-100' : 'opacity-80'}>
+              <ellipse
+                cx="20"
+                cy={y + 6}
+                rx={i === 2 ? 6 : 4}
+                ry={i === 2 ? 3 : 2}
+                className="fill-white"
+              />
+            </g>
+          ))}
+
+          {/* Central medical cross */}
           <path
-            d="M20 8C20 8 14 12 14 16C14 18 16 19 20 19C24 19 26 18 26 16C26 12 20 8 20 8Z"
-            className="fill-white/90"
-          />
-          <path
-            d="M20 32C20 32 14 28 14 24C14 22 16 21 20 21C24 21 26 22 26 24C26 28 20 32 20 32Z"
-            className="fill-white/90"
-          />
-          <circle cx="20" cy="20" r="2.5" className="fill-white" />
-          
-          {/* Connecting line */}
-          <path
-            d="M20 12V28"
+            d="M18 16H22M20 14V18"
             stroke="white"
             strokeWidth="1.5"
             strokeLinecap="round"
-            strokeDasharray="2 2"
-            className="opacity-60"
+            className="opacity-90"
+          />
+
+          {/* Connecting spine line */}
+          <path
+            d="M20 6V34"
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            className="opacity-70"
           />
         </svg>
       </div>

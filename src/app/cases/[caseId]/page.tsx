@@ -9,6 +9,15 @@ import { formatDate, truncateId } from '@/lib/utils/date';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { SymptomProfile, NeuroDeficits, Comorbidities, ConservativeCare } from '@/lib/actions/cases';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { Separator } from '@/components/ui/separator';
 
 const mergeJsonField = <T extends object>(value: unknown, defaults: T): T => {
   if (value && typeof value === 'object') {
@@ -226,25 +235,34 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
 
   return (
     <AppLayout user={{ profile, organization }}>
-      <div>
+      <div className="content-spacing">
+        {/* Breadcrumbs */}
+        <Breadcrumb className="mb-6">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/cases">Cases</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Case {truncateId(caseItem.id)}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Link
-                href="/cases"
-                className="text-slate-500 hover:text-slate-700 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </Link>
-              <h1 className="text-2xl font-bold text-slate-900">Case Details</h1>
+            <div className="flex items-center gap-3 mb-3">
+              <h1 className="text-heading text-slate-900">Case Details</h1>
               <Badge variant={getStatusBadgeVariant(caseItem.status)} size="md">
                 {formatStatus(caseItem.status)}
               </Badge>
             </div>
-            <p className="text-slate-600 font-mono text-sm">{caseItem.id}</p>
+            <p className="text-caption font-mono">{caseItem.id}</p>
           </div>
           <div className="flex gap-3">
             {canEdit && (
@@ -302,9 +320,9 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-8">
             {/* Overview */}
             <Card>
               <CardHeader>Overview</CardHeader>
@@ -350,8 +368,9 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
 
               {/* Neurological Deficits */}
-              <div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
-                <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Neurological Deficits</h4>
+              <div className="mt-8 space-y-4">
+                <Separator />
+                <h4 className="text-title text-slate-700">Neurological Deficits</h4>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(neuroDeficits).filter(([, value]) => value).length > 0 ? (
                     Object.entries(neuroDeficits)
@@ -368,8 +387,9 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
 
               {/* Prior Surgery */}
-              <div className="mt-6 pt-6 border-t border-slate-100">
-                <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-3">Prior Surgery</h4>
+              <div className="mt-8 space-y-4">
+                <Separator />
+                <h4 className="text-title text-slate-700">Prior Surgery</h4>
                 {caseItem.prior_surgery ? (
                   <div>
                     <Badge variant="warning">Yes - Prior Surgery</Badge>
@@ -383,8 +403,9 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
 
               {/* Comorbidities */}
-              <div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
-                <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Comorbidities</h4>
+              <div className="mt-8 space-y-4">
+                <Separator />
+                <h4 className="text-title text-slate-700">Comorbidities</h4>
                 <div className="flex flex-wrap gap-2">
                   {formatComorbidities(comorbidities).length > 0 ? (
                     formatComorbidities(comorbidities).map((item, index) => (
@@ -399,8 +420,9 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
 
               {/* Conservative Care */}
-              <div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
-                <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Conservative Care Tried</h4>
+              <div className="mt-8 space-y-4">
+                <Separator />
+                <h4 className="text-title text-slate-700">Conservative Care Tried</h4>
                 <div className="flex flex-wrap gap-2">
                   {formatConservativeCare(conservativeCare).length > 0 ? (
                     formatConservativeCare(conservativeCare).map((item, index) => (
@@ -439,8 +461,9 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
               </div>
 
               {/* Procedure Codes */}
-              <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
-                <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Procedure Codes</h4>
+              <div className="mt-8 space-y-4">
+                <Separator />
+                <h4 className="text-title text-slate-700">Procedure Codes</h4>
                 {procedureCodes.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {procedureCodes.map((code, index) => (
@@ -456,8 +479,9 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
 
               {/* Clinical Rationale */}
               {caseItem.free_text_summary && (
-                <div className="mt-6 pt-6 border-t border-slate-100">
-                  <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-3">Clinical Rationale</h4>
+                <div className="mt-8 space-y-4">
+                  <Separator />
+                  <h4 className="text-title text-slate-700">Clinical Rationale</h4>
                   <p className="text-slate-700 whitespace-pre-wrap">{caseItem.free_text_summary}</p>
                 </div>
               )}
@@ -529,11 +553,11 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
-                            review.status === 'SUBMITTED' 
-                              ? 'bg-green-100 text-green-700' 
+                            review.status === 'SUBMITTED'
+                              ? 'bg-emerald-100 text-emerald-700'
                               : review.status === 'IN_PROGRESS'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-slate-100 text-slate-600'
+                              ? 'bg-cyan-100 text-cyan-700'
+                              : 'bg-amber-100 text-amber-700'
                           }`}>
                             R{index + 1}
                           </div>
@@ -558,7 +582,7 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
                         <div className="flex items-center gap-2">
                           {review.status === 'SUBMITTED' ? (
                             <>
-                              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
@@ -575,14 +599,14 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
                               </Link>
                             </>
                           ) : review.status === 'IN_PROGRESS' ? (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-100 text-cyan-700 rounded-full text-xs font-medium">
                               <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                               </svg>
                               In Progress
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>

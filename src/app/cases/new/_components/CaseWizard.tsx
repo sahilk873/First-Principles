@@ -499,10 +499,10 @@ interface Step1Props {
 
 function Step1BasicInfo({ formData, errors, updateFormData }: Step1Props) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 mb-1">Basic Case Information</h2>
-        <p className="text-slate-500 text-sm">Enter patient identifier and primary anatomical region</p>
+        <h2 className="text-subheading text-slate-900 mb-2">Basic Case Information</h2>
+        <p className="text-caption">Enter patient identifier and primary anatomical region</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -568,10 +568,10 @@ function Step2ClinicalDetails({
   updateConservativeCare,
 }: Step2Props) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 mb-1">Clinical Details</h2>
-        <p className="text-slate-500 text-sm">Detailed symptom profile and patient history</p>
+        <h2 className="text-subheading text-slate-900 mb-2">Clinical Details</h2>
+        <p className="text-caption">Detailed symptom profile and patient history</p>
       </div>
 
       {/* Symptom Profile */}
@@ -767,10 +767,10 @@ function Step3ProposedProcedure({ formData, errors, updateFormData }: Step3Props
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 mb-1">Proposed Procedure</h2>
-        <p className="text-slate-500 text-sm">Enter diagnosis and procedure codes with clinical rationale</p>
+        <h2 className="text-subheading text-slate-900 mb-2">Proposed Procedure</h2>
+        <p className="text-caption">Enter diagnosis and procedure codes with clinical rationale</p>
       </div>
 
       {/* Diagnosis Codes */}
@@ -934,10 +934,10 @@ function Step4ImagingUpload({ formData, errors, handleFileUpload, removeFile, up
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900 mb-1">Imaging Upload</h2>
-        <p className="text-slate-500 text-sm">Upload relevant imaging files (MRI, CT, X-ray)</p>
+        <h2 className="text-subheading text-slate-900 mb-2">Imaging Upload</h2>
+        <p className="text-caption">Upload relevant imaging files (MRI, CT, X-ray)</p>
       </div>
 
       {/* Upload Area */}

@@ -41,14 +41,14 @@ export async function ClinicianDashboard({ profile, organization }: ClinicianDas
   const recentCases = (recentCasesData || []) as Case[];
 
   return (
-    <div>
+    <div className="content-spacing">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-10">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-display text-slate-900">
             Welcome back, {profile.name.split(' ')[0]}
           </h1>
-          <p className="mt-1 text-slate-600">
+          <p className="mt-2 text-body text-slate-600">
             {organization.name} • Clinician Dashboard
           </p>
         </div>
@@ -67,11 +67,11 @@ export async function ClinicianDashboard({ profile, organization }: ClinicianDas
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         <StatCard
           title="Cases in Review"
           value={casesInReviewCount || 0}
-          color="blue"
+          color="cyan"
           icon={
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -86,7 +86,7 @@ export async function ClinicianDashboard({ profile, organization }: ClinicianDas
         <StatCard
           title="Completed Cases"
           value={completedCasesCount || 0}
-          color="teal"
+          color="emerald"
           icon={
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -101,7 +101,7 @@ export async function ClinicianDashboard({ profile, organization }: ClinicianDas
         <StatCard
           title="Total Submitted"
           value={(casesInReviewCount || 0) + (completedCasesCount || 0)}
-          color="slate"
+          color="teal"
           icon={
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -116,11 +116,11 @@ export async function ClinicianDashboard({ profile, organization }: ClinicianDas
       </div>
 
       {/* Recent Cases Table */}
-      <Card padding="none">
+      <Card className="card-dashboard" padding="none">
         <div className="px-6 py-4 border-b border-slate-100">
           <CardHeader
             action={
-              <Link href="/cases" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+              <Link href="/cases" className="text-sm font-medium text-teal-600 hover:text-teal-700">
                 View all cases →
               </Link>
             }
@@ -163,7 +163,7 @@ export async function ClinicianDashboard({ profile, organization }: ClinicianDas
                   <TableCell>
                     <Link
                       href={`/cases/${caseItem.id}`}
-                      className="font-mono text-sm text-blue-600 hover:text-blue-700"
+                      className="font-mono text-sm text-teal-600 hover:text-teal-700"
                     >
                       {truncateId(caseItem.id)}
                     </Link>
