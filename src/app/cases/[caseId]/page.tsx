@@ -539,7 +539,7 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-slate-900">
-                              Reviewer {index + 1}
+                              {review.reviewer?.name || `Reviewer ${index + 1}`}
                               {review.reviewer?.specialties && review.reviewer.specialties.length > 0 && (
                                 <span className="ml-2 text-xs text-slate-500">
                                   ({review.reviewer.specialties[0]})
@@ -547,7 +547,7 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
                               )}
                             </p>
                             <p className="text-xs text-slate-500">
-                              {review.status === 'SUBMITTED' 
+                              {review.status === 'SUBMITTED'
                                 ? `Completed ${formatDate(review.updated_at)}`
                                 : review.status === 'IN_PROGRESS'
                                 ? 'Currently reviewing'
