@@ -8,7 +8,8 @@ import { Profile, Case, CaseStatus, AnatomyRegion } from '@/types/database';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
-import { Badge, getStatusBadgeVariant, formatStatus } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
+import { getStatusBadgeVariant, formatStatus } from '@/lib/utils/status';
 import {
   Table,
   TableHeader,
@@ -58,6 +59,7 @@ export function CasesTable({
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [anatomyFilter, setAnatomyFilter] = useState(initialAnatomyFilter);
+
 
   const fetchCases = useCallback(async () => {
     setIsLoading(true);
@@ -120,15 +122,6 @@ export function CasesTable({
   useEffect(() => {
     fetchCases();
   }, [fetchCases]);
-
-  // Update URL when filters change
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (statusFilter !== 'all') params.set('status', statusFilter);
-    if (anatomyFilter !== 'all') params.set('anatomy', anatomyFilter);
-    const queryString = params.toString();
-    router.replace(`/cases${queryString ? `?${queryString}` : ''}`, { scroll: false });
-  }, [statusFilter, anatomyFilter, router]);
 
   const handleRowClick = (caseId: string) => {
     router.push(`/cases/${caseId}`);
@@ -317,4 +310,3 @@ export function CasesTable({
     </div>
   );
 }
-

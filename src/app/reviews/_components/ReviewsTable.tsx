@@ -7,7 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { Profile, Review, Case, ReviewStatus } from '@/types/database';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge, getStatusBadgeVariant, formatStatus } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
+import { getStatusBadgeVariant, formatStatus } from '@/lib/utils/status';
 import {
   Table,
   TableHeader,
@@ -318,4 +319,3 @@ export function ReviewsTable({ profile }: ReviewsTableProps) {
     </div>
   );
 }
-

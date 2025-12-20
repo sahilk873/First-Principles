@@ -15,7 +15,10 @@ export type PreferredApproach = 'DECOMPRESSION_ONLY' | 'PLF' | 'TLIF' | 'ALIF' |
 
 export type FinalClass = 'APPROPRIATE' | 'UNCERTAIN' | 'INAPPROPRIATE';
 
-export type NotificationType = 'CASE_ASSIGNED' | 'CASE_RESULT_READY' | 'REVIEW_REMINDER' | 'SYSTEM_MESSAGE';
+export type NotificationType = 'CASE_ASSIGNED' | 'CASE_RESULT_READY' | 'REVIEW_REMINDER' | 'SYSTEM_MESSAGE' | 'REVIEW_CLARIFICATION' | 'CLARIFICATION_REQUEST';
+
+export type ClarificationSenderType = 'SYSTEM' | 'REVIEWER' | 'CLINICIAN';
+export type ClarificationMessageType = 'QUESTION' | 'ANSWER' | 'INFO';
 
 // ============================================
 // Database Table Types
@@ -80,8 +83,19 @@ export interface Review {
   missing_data_flag: boolean | null;
   missing_data_description: string | null;
   comments: string | null;
+  clarification_completed: boolean | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ReviewClarification {
+  id: string;
+  review_id: string;
+  sender_type: ClarificationSenderType;
+  sender_id: string | null;
+  message: string;
+  message_type: ClarificationMessageType;
+  created_at: string;
 }
 
 export interface CaseResult {

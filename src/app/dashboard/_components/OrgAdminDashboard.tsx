@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Profile, Organization, Case } from '@/types/database';
 import { Card, CardHeader, StatCard } from '@/components/ui/Card';
-import { Badge, getStatusBadgeVariant, formatStatus } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
+import { getStatusBadgeVariant, formatStatus } from '@/lib/utils/status';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, TableEmptyState } from '@/components/ui/Table';
 import { formatDate, truncateId, getStartOfMonth } from '@/lib/utils/date';
 
@@ -221,4 +222,3 @@ export async function OrgAdminDashboard({ profile, organization }: OrgAdminDashb
     </div>
   );
 }
-

@@ -2,8 +2,15 @@
 
 import { clsx } from 'clsx';
 import { ReactNode } from 'react';
+import type { StatusBadgeVariant } from '@/lib/utils/status';
+import {
+  getStatusBadgeVariant,
+  getResultBadgeVariant,
+  formatStatus,
+  formatFinalClass,
+} from '@/lib/utils/status';
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'purple' | 'teal';
+type BadgeVariant = StatusBadgeVariant;
 
 interface BadgeProps {
   children: ReactNode;
@@ -37,51 +44,9 @@ export function Badge({ children, variant = 'default', size = 'sm', className }:
   );
 }
 
-// Helper function to get badge variant from case status
-export function getStatusBadgeVariant(status: string): BadgeVariant {
-  switch (status) {
-    case 'DRAFT':
-      return 'default';
-    case 'SUBMITTED':
-      return 'info';
-    case 'UNDER_REVIEW':
-      return 'warning';
-    case 'COMPLETED':
-      return 'success';
-    case 'FAILED':
-      return 'error';
-    case 'ASSIGNED':
-      return 'info';
-    case 'IN_PROGRESS':
-      return 'warning';
-    case 'EXPIRED':
-      return 'error';
-    default:
-      return 'default';
-  }
-}
-
-// Helper function to get badge variant from final_class result
-export function getResultBadgeVariant(finalClass: string): BadgeVariant {
-  switch (finalClass) {
-    case 'APPROPRIATE':
-      return 'success';
-    case 'UNCERTAIN':
-      return 'warning';
-    case 'INAPPROPRIATE':
-      return 'error';
-    default:
-      return 'default';
-  }
-}
-
-// Format status for display
-export function formatStatus(status: string): string {
-  return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
-}
-
-// Format final_class for display
-export function formatFinalClass(finalClass: string): string {
-  return finalClass.charAt(0) + finalClass.slice(1).toLowerCase();
-}
-
+export {
+  getStatusBadgeVariant,
+  getResultBadgeVariant,
+  formatStatus,
+  formatFinalClass,
+};

@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Profile, Organization, Case, CaseResult, Review } from '@/types/database';
 import { Card, CardHeader } from '@/components/ui/Card';
-import { Badge, getStatusBadgeVariant, formatStatus } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
+import { getStatusBadgeVariant, formatStatus } from '@/lib/utils/status';
 import { formatDate, truncateId } from '@/lib/utils/date';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
@@ -168,6 +169,26 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
     .eq('case_id', caseId)
     .single();
   const caseResult = caseResultData as CaseResult | null;
+
+  // Fetch reviews with reviewer info (for clinician to see assigned reviewers)
+  const { data: reviewsData } = await supabase
+    .from('reviews')
+    .select(`
+      id,
+      status,
+      created_at,
+      updated_at,
+      reviewer:profiles!reviewer_id(id, name, specialties)
+    `)
+    .eq('case_id', caseId);
+  
+  const reviews = (reviewsData || []) as Array<{
+    id: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    reviewer?: { id: string; name: string; specialties: string[] } | null;
+  }>;
 
   // Parse JSON fields with sane defaults to satisfy strict typing
   const symptomProfile = mergeJsonField<SymptomProfile>(caseItem.symptom_profile, {
@@ -473,6 +494,108 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
                 </div>
               )}
             </Card>
+
+            {/* Reviewer Status Section - Visible to case submitter */}
+            {caseItem.submitter_id === profile.id && reviews.length > 0 && (
+              <Card>
+                <CardHeader>Review Progress</CardHeader>
+                <div className="space-y-4">
+                  {/* Progress Summary */}
+                  <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-slate-700">
+                          {reviews.filter(r => r.status === 'SUBMITTED').length} of {reviews.length} reviews completed
+                        </span>
+                        <span className="text-sm text-slate-500">
+                          {Math.round((reviews.filter(r => r.status === 'SUBMITTED').length / reviews.length) * 100)}%
+                        </span>
+                      </div>
+                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
+                          style={{ width: `${(reviews.filter(r => r.status === 'SUBMITTED').length / reviews.length) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Individual Reviewer Status */}
+                  <div className="space-y-3">
+                    {reviews.map((review, index) => (
+                      <div 
+                        key={review.id} 
+                        className="flex items-center justify-between p-3 border border-slate-200 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
+                            review.status === 'SUBMITTED' 
+                              ? 'bg-green-100 text-green-700' 
+                              : review.status === 'IN_PROGRESS'
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            R{index + 1}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-900">
+                              Reviewer {index + 1}
+                              {review.reviewer?.specialties && review.reviewer.specialties.length > 0 && (
+                                <span className="ml-2 text-xs text-slate-500">
+                                  ({review.reviewer.specialties[0]})
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {review.status === 'SUBMITTED' 
+                                ? `Completed ${formatDate(review.updated_at)}`
+                                : review.status === 'IN_PROGRESS'
+                                ? 'Currently reviewing'
+                                : 'Review pending'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {review.status === 'SUBMITTED' ? (
+                            <>
+                              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Submitted
+                              </span>
+                              <Link 
+                                href={`/reviews/${review.id}/clarify`}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium hover:bg-blue-200 transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                </svg>
+                                View Discussion
+                              </Link>
+                            </>
+                          ) : review.status === 'IN_PROGRESS' ? (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              In Progress
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Pending
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+            )}
 
             {/* Result Placeholder */}
             {!caseResult && caseItem.status !== 'DRAFT' && (

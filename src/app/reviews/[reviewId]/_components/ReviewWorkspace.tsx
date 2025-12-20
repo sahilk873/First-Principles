@@ -6,8 +6,10 @@ import Link from 'next/link';
 import { Review, Profile, PreferredApproach } from '@/types/database';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge, getStatusBadgeVariant, formatStatus } from '@/components/ui/Badge';
-import { Select } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
+import { getStatusBadgeVariant, formatStatus } from '@/lib/utils/status';
+import { Slider } from '@/components/ui/Slider';
+import { DictationTextarea } from '@/components/ui/DictationTextarea';
 import { clsx } from 'clsx';
 import { saveReviewDraft, submitReview, ReviewFormData } from '@/lib/actions/reviews';
 import { SymptomProfile, NeuroDeficits, Comorbidities, ConservativeCare } from '@/lib/actions/cases';
@@ -35,13 +37,12 @@ interface ReviewWorkspaceProps {
   profile: Profile;
 }
 
-const PREFERRED_APPROACH_OPTIONS = [
-  { value: '', label: 'Select approach...' },
-  { value: 'DECOMPRESSION_ONLY', label: 'Decompression Only' },
-  { value: 'PLF', label: 'PLF (Posterolateral Fusion)' },
-  { value: 'TLIF', label: 'TLIF (Transforaminal Lumbar Interbody Fusion)' },
-  { value: 'ALIF', label: 'ALIF (Anterior Lumbar Interbody Fusion)' },
-  { value: 'OTHER', label: 'Other' },
+const PREFERRED_APPROACH_OPTIONS: { value: PreferredApproach; label: string; description: string }[] = [
+  { value: 'DECOMPRESSION_ONLY', label: 'Decompression Only', description: 'Laminectomy, microdiscectomy, etc.' },
+  { value: 'PLF', label: 'PLF', description: 'Posterolateral Fusion' },
+  { value: 'TLIF', label: 'TLIF', description: 'Transforaminal Lumbar Interbody Fusion' },
+  { value: 'ALIF', label: 'ALIF', description: 'Anterior Lumbar Interbody Fusion' },
+  { value: 'OTHER', label: 'Other', description: 'Alternative approach' },
 ];
 
 export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWorkspaceProps) {
@@ -115,7 +116,8 @@ export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWo
     try {
       const result = await submitReview(review.id, formData);
       if (result.success) {
-        router.push('/reviews');
+        // Redirect to clarification chatbot page after submission
+        router.push(`/reviews/${review.id}/clarify`);
         router.refresh();
       } else {
         setErrors({ submit: result.error || 'Failed to submit review' });
@@ -355,38 +357,24 @@ export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWo
               </div>
             )}
 
-            {/* Appropriateness Score */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-700 mb-3">
-                Appropriateness Score <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center gap-4">
-                <input
-                  type="range"
-                  min="1"
-                  max="9"
-                  value={formData.appropriateness_score}
-                  onChange={(e) => updateFormData('appropriateness_score', parseInt(e.target.value))}
-                  disabled={!canEdit}
-                  className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
-                <span className={clsx(
-                  'w-12 h-12 rounded-lg flex items-center justify-center text-xl font-bold',
-                  formData.appropriateness_score >= 7 ? 'bg-green-100 text-green-700' :
-                  formData.appropriateness_score >= 4 ? 'bg-amber-100 text-amber-700' :
-                  'bg-red-100 text-red-700'
-                )}>
-                  {formData.appropriateness_score}
-                </span>
-              </div>
-              <div className="flex justify-between mt-2 text-xs text-slate-500">
-                <span>1 - Inappropriate</span>
-                <span>5 - Uncertain</span>
-                <span>9 - Appropriate</span>
-              </div>
-              {errors.appropriateness_score && (
-                <p className="mt-2 text-sm text-red-600">{errors.appropriateness_score}</p>
-              )}
+            {/* Appropriateness Score - Enhanced Slider */}
+            <div className="mb-8">
+              <Slider
+                label="Appropriateness Score"
+                min={1}
+                max={9}
+                step={1}
+                value={formData.appropriateness_score}
+                onChange={(e) => updateFormData('appropriateness_score', parseInt(e.target.value))}
+                disabled={!canEdit}
+                colorScale="appropriateness"
+                markers={[
+                  { value: 1, label: '1 - Inappropriate' },
+                  { value: 5, label: '5 - Uncertain' },
+                  { value: 9, label: '9 - Appropriate' },
+                ]}
+                error={errors.appropriateness_score}
+              />
             </div>
 
             {/* Surgery/Fusion Indicated */}
@@ -451,16 +439,53 @@ export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWo
               </div>
             </div>
 
-            {/* Preferred Approach */}
-            <div className="mb-6">
-              <Select
-                label="Preferred Approach"
-                options={PREFERRED_APPROACH_OPTIONS}
-                value={formData.preferred_approach}
-                onChange={(e) => updateFormData('preferred_approach', e.target.value as PreferredApproach)}
-                disabled={!canEdit}
-                error={errors.preferred_approach}
-              />
+            {/* Preferred Approach - Visual Selection */}
+            <div className="mb-8">
+              <label className="block text-sm font-medium text-slate-700 mb-3">
+                Preferred Approach <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {PREFERRED_APPROACH_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => canEdit && updateFormData('preferred_approach', option.value)}
+                    disabled={!canEdit}
+                    className={clsx(
+                      'flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all',
+                      formData.preferred_approach === option.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
+                      !canEdit && 'opacity-60 cursor-not-allowed'
+                    )}
+                  >
+                    <div className={clsx(
+                      'w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                      formData.preferred_approach === option.value
+                        ? 'border-blue-500 bg-blue-500'
+                        : 'border-slate-300'
+                    )}>
+                      {formData.preferred_approach === option.value && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                    <div>
+                      <p className={clsx(
+                        'text-sm font-medium',
+                        formData.preferred_approach === option.value ? 'text-blue-700' : 'text-slate-700'
+                      )}>
+                        {option.label}
+                      </p>
+                      <p className="text-xs text-slate-500">{option.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {errors.preferred_approach && (
+                <p className="mt-2 text-sm text-rose-600">{errors.preferred_approach}</p>
+              )}
             </div>
 
             {/* Outcome Questions */}
@@ -526,55 +551,45 @@ export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWo
             </div>
 
             {/* Missing Data Flag */}
-            <div className="mb-6">
-              <label className="flex items-center gap-3 cursor-pointer">
+            <div className="mb-8">
+              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
                 <input
                   type="checkbox"
                   checked={formData.missing_data_flag}
                   onChange={(e) => canEdit && updateFormData('missing_data_flag', e.target.checked)}
                   disabled={!canEdit}
-                  className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
+                  className="w-5 h-5 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
                 />
-                <span className="text-sm font-medium text-slate-700">Missing Data Flag</span>
+                <div>
+                  <span className="text-sm font-medium text-slate-700">Missing Data Flag</span>
+                  <p className="text-xs text-slate-500">Check if important data is missing from the case</p>
+                </div>
               </label>
               {formData.missing_data_flag && (
                 <div className="mt-3">
-                  <textarea
+                  <DictationTextarea
                     value={formData.missing_data_description}
-                    onChange={(e) => updateFormData('missing_data_description', e.target.value)}
-                    placeholder="Describe what data is missing..."
+                    onChange={(value) => updateFormData('missing_data_description', value)}
+                    placeholder="Describe what data is missing... (click Dictate to use voice input)"
                     rows={3}
                     disabled={!canEdit}
-                    className={clsx(
-                      'w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors',
-                      'focus:outline-none focus:ring-2',
-                      errors.missing_data_description
-                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                        : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/20',
-                      !canEdit && 'bg-slate-50'
-                    )}
+                    error={errors.missing_data_description}
+                    hint="Be specific about what additional information would help your assessment"
                   />
-                  {errors.missing_data_description && (
-                    <p className="mt-1.5 text-sm text-red-600">{errors.missing_data_description}</p>
-                  )}
                 </div>
               )}
             </div>
 
-            {/* Comments */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Comments</label>
-              <textarea
+            {/* Comments with Dictation */}
+            <div className="mb-8">
+              <DictationTextarea
+                label="Comments & Recommendations"
                 value={formData.comments}
-                onChange={(e) => updateFormData('comments', e.target.value)}
-                placeholder="Additional comments, recommendations, or concerns..."
-                rows={4}
+                onChange={(value) => updateFormData('comments', value)}
+                placeholder="Additional comments, recommendations, or concerns... (click Dictate to use voice input)"
+                rows={5}
                 disabled={!canEdit}
-                className={clsx(
-                  'w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors',
-                  'focus:outline-none focus:ring-2 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20',
-                  !canEdit && 'bg-slate-50'
-                )}
+                hint="Include any clinical considerations, alternative approaches, or concerns about the proposed procedure"
               />
             </div>
 
@@ -684,4 +699,3 @@ function formatConservativeCare(care: ConservativeCare): string[] {
   if (care.injections) items.push('Injections');
   return items;
 }
-
