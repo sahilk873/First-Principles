@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Profile, Organization, Case, CaseResult, Review } from '@/types/database';
+import { Profile, Organization, Case, CaseResult } from '@/types/database';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { getStatusBadgeVariant, formatStatus } from '@/lib/utils/status';
@@ -18,6 +18,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
+import { ImagingViewer } from './_components/ImagingViewer';
 
 const mergeJsonField = <T extends object>(value: unknown, defaults: T): T => {
   if (value && typeof value === 'object') {
@@ -491,24 +492,7 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
             <Card>
               <CardHeader>Imaging</CardHeader>
               {imagingPaths.length > 0 ? (
-                <div className="space-y-3">
-                  {imagingPaths.map((path, index) => {
-                    const fileName = path.split('/').pop() || path;
-                    return (
-                      <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                          <span className="text-sm font-medium text-slate-700">{fileName}</span>
-                        </div>
-                        <ImagingDownloadButton path={path} />
-                      </div>
-                    );
-                  })}
-                </div>
+                <ImagingViewer imagingPaths={imagingPaths} />
               ) : (
                 <div className="text-center py-8 text-slate-500">
                   <svg className="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -754,21 +738,4 @@ function formatConservativeCare(care: ConservativeCare): string[] {
   if (care.meds) items.push('Medications');
   if (care.injections) items.push('Injections');
   return items;
-}
-
-// Client component for download button
-function ImagingDownloadButton({ path }: { path: string }) {
-  return (
-    <a
-      href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/imaging/${path}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-    >
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-      </svg>
-      Download
-    </a>
-  );
 }
