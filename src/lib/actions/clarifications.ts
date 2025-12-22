@@ -22,7 +22,11 @@ export interface ClarificationFormData {
 interface ReviewForClarification {
   appropriateness_score: number | null;
   surgery_indicated: boolean | null;
+  fusion_indicated: boolean | null;
+  preferred_approach: string | null;
+  comments: string | null;
   missing_data_flag: boolean | null;
+  missing_data_description: string | null;
   optimization_recommended: boolean | null;
   successful_outcome_likely: boolean | null;
 }
@@ -39,7 +43,11 @@ export async function generateClarificationQuestions(
     .select(`
       appropriateness_score,
       surgery_indicated,
+      fusion_indicated,
+      preferred_approach,
+      comments,
       missing_data_flag,
+      missing_data_description,
       optimization_recommended,
       successful_outcome_likely
     `)
@@ -54,47 +62,77 @@ export async function generateClarificationQuestions(
 
   // Generate contextual questions based on review content
   const questions: string[] = [];
+  const addQuestion = (text: string) => {
+    if (!questions.includes(text)) {
+      questions.push(text);
+    }
+  };
 
   // Check for potential clarification points
-  if (review.appropriateness_score && review.appropriateness_score <= 4) {
-    questions.push(
-      'You rated this case as uncertain or inappropriate. Could you elaborate on the primary clinical factors that led to this assessment?'
+  if (typeof review.appropriateness_score === 'number' && review.appropriateness_score <= 4) {
+    addQuestion(
+      `You rated this case ${review.appropriateness_score}/9, suggesting uncertainty or inappropriateness. What specific clinical factors led to that score?`
     );
   }
 
-  if (review.appropriateness_score && review.appropriateness_score >= 7 && !review.surgery_indicated) {
-    questions.push(
-      'You rated this case as appropriate but indicated surgery may not be indicated. Could you clarify this assessment?'
+  if (
+    typeof review.appropriateness_score === 'number' &&
+    review.appropriateness_score >= 7 &&
+    review.surgery_indicated === false
+  ) {
+    addQuestion(
+      `You provided a high appropriateness score (${review.appropriateness_score}/9) but marked surgery as not indicated. Can you walk through that nuance?`
     );
   }
 
   if (review.missing_data_flag) {
-    questions.push(
-      'You flagged missing data for this case. How significantly does the missing information impact your confidence in the assessment?'
+    addQuestion(
+      review.missing_data_description
+        ? `You flagged missing data (${review.missing_data_description}). How much does that gap limit your confidence in the current plan?`
+        : 'You flagged missing data for this case. How significantly does the missing information impact your confidence in the assessment?'
     );
   }
 
   if (review.optimization_recommended) {
-    questions.push(
-      'You recommended patient optimization before proceeding. What specific optimization measures would you suggest?'
+    addQuestion(
+      'You recommended patient optimization before proceeding. What specific optimization measures would you suggest to the treating team?'
+    );
+  }
+
+  if (review.surgery_indicated && review.fusion_indicated === false) {
+    addQuestion(
+      'You felt surgery is indicated but fusion is not. Could you highlight the clinical reasoning or alternative strategies you would consider?'
     );
   }
 
   if (!review.successful_outcome_likely && review.surgery_indicated) {
-    questions.push(
+    addQuestion(
       'You indicated surgery is appropriate but a successful outcome may not be likely. What factors contribute to this concern?'
+    );
+  }
+
+  if (review.preferred_approach) {
+    addQuestion(
+      `You selected ${review.preferred_approach.replace(/_/g, ' ').toLowerCase()} as your preferred approach. What makes this strategy most compelling in this case?`
+    );
+  }
+
+  if (review.comments) {
+    const excerpt = review.comments.length > 180 ? `${review.comments.slice(0, 177)}...` : review.comments;
+    addQuestion(
+      `In your review you noted: "${excerpt}". Is there additional context you can provide to help the submitting physician act on that feedback?`
     );
   }
 
   // Always add a general question if we have few specific ones
   if (questions.length < 2) {
-    questions.push(
+    addQuestion(
       'Are there any additional clinical considerations or recommendations you would like to share with the submitting physician?'
     );
   }
 
   // Store the initial questions in the database
-  const messagesToInsert = questions.map((question, index) => ({
+  const messagesToInsert = questions.map((question) => ({
     review_id: reviewId,
     sender_type: 'SYSTEM' as const,
     sender_id: null,
@@ -315,4 +353,3 @@ export async function addClinicianQuestion(
 
   return { success: true };
 }
-

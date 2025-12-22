@@ -162,10 +162,8 @@ export default async function ClarifyPage({ params }: ClarifyPageProps) {
             optimization_recommended: review.optimization_recommended,
           }}
           userRole={isReviewer ? 'REVIEWER' : 'CLINICIAN'}
-          caseId={review.case?.id || ''}
         />
       </div>
     </AppLayout>
   );
 }
-

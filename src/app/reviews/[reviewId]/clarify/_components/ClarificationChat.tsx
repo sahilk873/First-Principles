@@ -30,7 +30,6 @@ interface ClarificationChatProps {
   initialQuestions: string[];
   review: ReviewData;
   userRole: 'REVIEWER' | 'CLINICIAN';
-  caseId: string;
 }
 
 export function ClarificationChat({
@@ -39,7 +38,6 @@ export function ClarificationChat({
   initialQuestions,
   review,
   userRole,
-  caseId,
 }: ClarificationChatProps) {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -50,11 +48,15 @@ export function ClarificationChat({
   const [isComplete, setIsComplete] = useState(false);
 
   // Derive questions from initial messages or use generated questions
-  const systemQuestions = messages.length > 0 
-    ? messages.filter(m => m.sender_type === 'SYSTEM' && m.message_type === 'QUESTION').map(m => m.message)
-    : initialQuestions;
-
-  const answeredQuestions = messages.filter(m => m.sender_type === 'REVIEWER' && m.message_type === 'ANSWER').length;
+  const systemQuestionMessages = messages.filter(
+    (m) => m.sender_type === 'SYSTEM' && m.message_type === 'QUESTION'
+  );
+  const systemQuestions =
+    systemQuestionMessages.length > 0 ? systemQuestionMessages.map((m) => m.message) : initialQuestions;
+  const reviewerAnswerMessages = messages.filter(
+    (m) => m.sender_type === 'REVIEWER' && m.message_type === 'ANSWER'
+  );
+  const answeredQuestions = reviewerAnswerMessages.length;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,10 +64,10 @@ export function ClarificationChat({
 
   useEffect(() => {
     // Set current question index based on answered questions
-    setCurrentQuestionIndex(answeredQuestions);
-  }, [answeredQuestions]);
+    setCurrentQuestionIndex(Math.min(answeredQuestions, systemQuestions.length));
+  }, [answeredQuestions, systemQuestions.length]);
 
-  const handleSubmitResponse = async () => {
+  const handleSubmitResponse = async (options?: { skipAdvance?: boolean }) => {
     if (!response.trim()) return;
 
     setIsSubmitting(true);
@@ -82,9 +84,11 @@ export function ClarificationChat({
           message_type: 'ANSWER',
           created_at: new Date().toISOString(),
         };
-        setMessages([...messages, newMessage]);
+        setMessages((prev) => [...prev, newMessage]);
         setResponse('');
-        setCurrentQuestionIndex((prev) => prev + 1);
+        if (!options?.skipAdvance) {
+          setCurrentQuestionIndex((prev) => Math.min(prev + 1, systemQuestions.length));
+        }
       }
     } catch (error) {
       console.error('Error submitting response:', error);
@@ -112,7 +116,7 @@ export function ClarificationChat({
   };
 
   const handleSkip = () => {
-    setCurrentQuestionIndex((prev) => prev + 1);
+    setCurrentQuestionIndex((prev) => Math.min(prev + 1, systemQuestions.length));
   };
 
   const handleClinicianQuestion = async () => {
@@ -142,6 +146,70 @@ export function ClarificationChat({
   };
 
   const allQuestionsAnswered = currentQuestionIndex >= systemQuestions.length;
+  const progressPercent = systemQuestions.length > 0 ? (currentQuestionIndex / systemQuestions.length) * 100 : 100;
+  const answeredPairsCount = Math.min(currentQuestionIndex, reviewerAnswerMessages.length);
+
+  const createQuestionMessage = (text: string, index: number): ClarificationMessage => ({
+    id: `generated-${index}`,
+    review_id: reviewId,
+    sender_type: 'SYSTEM',
+    sender_id: null,
+    message: text,
+    message_type: 'QUESTION',
+    created_at: new Date().toISOString(),
+  });
+
+  const answeredPairs = Array.from({ length: answeredPairsCount }, (_, idx) => ({
+    question: systemQuestionMessages[idx] ?? createQuestionMessage(systemQuestions[idx] || `Question ${idx + 1}`, idx),
+    answer: reviewerAnswerMessages[idx],
+  }));
+  const usedAnswerIds = new Set(answeredPairs.map((pair) => pair.answer.id));
+
+  const parseTimestamp = (iso: string | null | undefined, fallback: number) => {
+    const ts = iso ? Date.parse(iso) : NaN;
+    return Number.isNaN(ts) ? fallback : ts;
+  };
+
+  const displayMessages = answeredPairs.flatMap((pair, idx) => {
+    const answerOrder = parseTimestamp(pair.answer.created_at, idx);
+    return [
+      {
+        key: `question-${pair.question.id}`,
+        role: 'SYSTEM' as const,
+        message: pair.question,
+        order: answerOrder - 0.5,
+      },
+      {
+        key: `answer-${pair.answer.id}`,
+        role: 'REVIEWER' as const,
+        message: pair.answer,
+        order: answerOrder,
+      },
+    ];
+  });
+
+  messages.forEach((msg, idx) => {
+    const isSystemQuestion = msg.sender_type === 'SYSTEM' && msg.message_type === 'QUESTION';
+    if (isSystemQuestion) {
+      // Skip answered/future system questions - current question rendered separately
+      return;
+    }
+
+    const isReviewerAnswer = msg.sender_type === 'REVIEWER' && msg.message_type === 'ANSWER';
+    if (isReviewerAnswer && usedAnswerIds.has(msg.id)) {
+      return;
+    }
+
+    const order = parseTimestamp(msg.created_at, answeredPairs.length + idx);
+    displayMessages.push({
+      key: msg.id || `msg-${idx}`,
+      role: msg.sender_type,
+      message: msg,
+      order,
+    });
+  });
+
+  displayMessages.sort((a, b) => a.order - b.order);
 
   if (isComplete) {
     return (
@@ -215,7 +283,7 @@ export function ClarificationChat({
         <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
-            style={{ width: `${(currentQuestionIndex / systemQuestions.length) * 100}%` }}
+            style={{ width: `${progressPercent}%` }}
           />
         </div>
         <span className="text-sm text-slate-500">
@@ -255,53 +323,72 @@ export function ClarificationChat({
             </div>
           </div>
 
-          {/* Existing messages */}
-          {messages.map((msg, index) => (
+          {/* Existing messages (question/answer pairs and other updates) */}
+          {displayMessages.map((item) => (
             <div
-              key={msg.id || index}
-              className={clsx(
-                'flex gap-3',
-                msg.sender_type === 'REVIEWER' && 'flex-row-reverse'
-              )}
+              key={item.key}
+              className={clsx('flex gap-3', item.role === 'REVIEWER' && 'flex-row-reverse')}
             >
-              <div className={clsx(
-                'w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center',
-                msg.sender_type === 'SYSTEM' && 'bg-gradient-to-br from-blue-500 to-purple-600',
-                msg.sender_type === 'REVIEWER' && 'bg-emerald-500',
-                msg.sender_type === 'CLINICIAN' && 'bg-amber-500'
-              )}>
-                {msg.sender_type === 'SYSTEM' ? (
+              <div
+                className={clsx(
+                  'w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center',
+                  item.role === 'SYSTEM' && 'bg-gradient-to-br from-blue-500 to-purple-600',
+                  item.role === 'REVIEWER' && 'bg-emerald-500',
+                  item.role === 'CLINICIAN' && 'bg-amber-500'
+                )}
+              >
+                {item.role === 'SYSTEM' ? (
                   <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
-                ) : msg.sender_type === 'REVIEWER' ? (
+                ) : item.role === 'REVIEWER' ? (
                   <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
                   </svg>
                 ) : (
                   <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 )}
               </div>
-              <div className={clsx(
-                'flex-1 max-w-[80%] p-4 rounded-xl shadow-sm border border-slate-100',
-                msg.sender_type === 'REVIEWER' 
-                  ? 'bg-emerald-50 rounded-tr-none' 
-                  : msg.sender_type === 'CLINICIAN'
-                  ? 'bg-amber-50 rounded-tl-none'
-                  : 'bg-white rounded-tl-none'
-              )}>
-                <p className={clsx(
-                  'text-xs font-medium mb-1',
-                  msg.sender_type === 'REVIEWER' ? 'text-emerald-600' :
-                  msg.sender_type === 'CLINICIAN' ? 'text-amber-600' :
-                  'text-blue-600'
-                )}>
-                  {msg.sender_type === 'SYSTEM' ? 'Question' : 
-                   msg.sender_type === 'REVIEWER' ? 'Your Response' : 'Clinician'}
+              <div
+                className={clsx(
+                  'flex-1 max-w-[80%] p-4 rounded-xl shadow-sm border border-slate-100',
+                  item.role === 'REVIEWER'
+                    ? 'bg-emerald-50 rounded-tr-none'
+                    : item.role === 'CLINICIAN'
+                    ? 'bg-amber-50 rounded-tl-none'
+                    : 'bg-white rounded-tl-none'
+                )}
+              >
+                <p
+                  className={clsx(
+                    'text-xs font-medium mb-1',
+                    item.role === 'REVIEWER' ? 'text-emerald-600' : item.role === 'CLINICIAN' ? 'text-amber-600' : 'text-blue-600'
+                  )}
+                >
+                  {item.role === 'SYSTEM'
+                    ? 'Question'
+                    : item.role === 'REVIEWER'
+                    ? 'Your Response'
+                    : 'Clinician'}
                 </p>
-                <p className="text-sm text-slate-700">{msg.message}</p>
+                <p className="text-sm text-slate-700">{item.message.message}</p>
               </div>
             </div>
           ))}
@@ -356,7 +443,11 @@ export function ClarificationChat({
               />
               <div className="flex items-center justify-center gap-3 mt-4">
                 {response.trim() && (
-                  <Button variant="secondary" onClick={handleSubmitResponse} disabled={isSubmitting}>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleSubmitResponse({ skipAdvance: true })}
+                    disabled={isSubmitting}
+                  >
                     Add Comment
                   </Button>
                 )}
@@ -398,4 +489,3 @@ export function ClarificationChat({
     </div>
   );
 }
-
