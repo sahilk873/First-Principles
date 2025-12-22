@@ -55,7 +55,7 @@ interface StatCardProps {
     value: number;
     isPositive: boolean;
   };
-  color?: 'teal' | 'blue' | 'amber' | 'purple' | 'slate';
+  color?: 'teal' | 'blue' | 'amber' | 'purple' | 'slate' | 'cyan' | 'emerald';
 }
 
 export function StatCard({ title, value, icon, trend, color = 'teal' }: StatCardProps) {
@@ -65,6 +65,8 @@ export function StatCard({ title, value, icon, trend, color = 'teal' }: StatCard
     amber: 'bg-amber-50 text-amber-600',
     purple: 'bg-purple-50 text-purple-600',
     slate: 'bg-slate-100 text-slate-600',
+    cyan: 'bg-cyan-50 text-cyan-600',
+    emerald: 'bg-emerald-50 text-emerald-600',
   };
 
   return (
