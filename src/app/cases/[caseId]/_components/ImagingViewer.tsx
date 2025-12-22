@@ -1,14 +1,17 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { clsx } from 'clsx';
 
 interface ImagingViewerProps {
   imagingPaths: string[];
 }
 
+type FilePreviewType = 'image' | 'dicom' | 'other';
+
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tif', '.tiff'];
+const DICOM_EXTENSIONS = ['.dcm', '.dicom'];
 
 const getFileName = (path: string) => {
   const segments = path.split('/');
@@ -20,6 +23,17 @@ const isImageFile = (path: string) => {
   return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 };
 
+const isDicomFile = (path: string) => {
+  const lower = path.toLowerCase();
+  return DICOM_EXTENSIONS.some((ext) => lower.endsWith(ext));
+};
+
+const getFileType = (path: string): FilePreviewType => {
+  if (isDicomFile(path)) return 'dicom';
+  if (isImageFile(path)) return 'image';
+  return 'other';
+};
+
 const buildPublicUrl = (path: string, options?: { download?: boolean }) => {
   const base = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/imaging/${path}`;
   if (options?.download) {
@@ -29,6 +43,36 @@ const buildPublicUrl = (path: string, options?: { download?: boolean }) => {
   return base;
 };
 
+type CornerstoneType = typeof import('cornerstone-core');
+let cornerstoneInstance: CornerstoneType | null = null;
+let cornerstoneInitPromise: Promise<CornerstoneType> | null = null;
+
+const loadCornerstone = async (): Promise<CornerstoneType> => {
+  if (!cornerstoneInitPromise) {
+    cornerstoneInitPromise = (async () => {
+      const [cornerstoneModule, wadoLoaderModule, dicomParserModule] = await Promise.all([
+        import('cornerstone-core'),
+        import('cornerstone-wado-image-loader'),
+        import('dicom-parser'),
+      ]);
+      const cornerstone = (cornerstoneModule.default ?? cornerstoneModule) as CornerstoneType;
+      const wadoLoader = wadoLoaderModule.default ?? wadoLoaderModule;
+      const dicomParser = dicomParserModule.default ?? dicomParserModule;
+      wadoLoader.external.cornerstone = cornerstone;
+      wadoLoader.external.dicomParser = dicomParser;
+      wadoLoader.configure({ useWebWorkers: false });
+      cornerstoneInstance = cornerstone;
+      return cornerstone;
+    })();
+  }
+
+  if (!cornerstoneInstance) {
+    cornerstoneInstance = await cornerstoneInitPromise;
+  }
+
+  return cornerstoneInstance;
+};
+
 export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(imagingPaths[0] || null);
 
@@ -36,13 +80,14 @@ export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
     if (!selectedPath) {
       return null;
     }
+    const type = getFileType(selectedPath);
     const url = buildPublicUrl(selectedPath);
     return {
       path: selectedPath,
       url,
-      name: getFileName(selectedPath),
-      previewable: isImageFile(selectedPath),
       downloadUrl: buildPublicUrl(selectedPath, { download: true }),
+      name: getFileName(selectedPath),
+      type,
     };
   }, [selectedPath]);
 
@@ -55,13 +100,15 @@ export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
       {selectedFile && (
         <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-900/5">
           <div className="flex items-center justify-center bg-slate-900/5 max-h-[540px] min-h-[320px]">
-            {selectedFile.previewable ? (
+            {selectedFile.type === 'image' ? (
               <img
                 src={selectedFile.url}
                 alt={selectedFile.name}
                 className="max-h-[520px] w-full object-contain bg-black/60"
                 loading="lazy"
               />
+            ) : selectedFile.type === 'dicom' ? (
+              <DicomPreview imageUrl={selectedFile.url} fileName={selectedFile.name} />
             ) : (
               <div className="text-center text-sm text-slate-500 p-6">
                 Preview not available. Use the download option below to view this file.
@@ -72,7 +119,11 @@ export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
             <div>
               <p className="text-sm font-semibold text-slate-800">{selectedFile.name}</p>
               <p className="text-xs text-slate-500">
-                {selectedFile.previewable ? 'Inline preview' : 'Preview unavailable'}
+                {selectedFile.type === 'image'
+                  ? 'Inline preview'
+                  : selectedFile.type === 'dicom'
+                  ? 'DICOM preview'
+                  : 'Preview unavailable'}
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -104,7 +155,8 @@ export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
         {imagingPaths.map((path) => {
           const fileName = getFileName(path);
           const isActive = path === selectedPath;
-          const previewUrl = isImageFile(path) ? buildPublicUrl(path) : null;
+          const fileType = getFileType(path);
+          const previewUrl = fileType === 'image' ? buildPublicUrl(path) : null;
 
           return (
             <button
@@ -135,7 +187,13 @@ export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-800">{fileName}</p>
-                  <p className="text-xs text-slate-500">{previewUrl ? 'Image file' : 'Download to view'}</p>
+                  <p className="text-xs text-slate-500">
+                    {fileType === 'image'
+                      ? 'Image file'
+                      : fileType === 'dicom'
+                      ? 'DICOM file'
+                      : 'Download to view'}
+                  </p>
                 </div>
               </div>
               <svg
@@ -150,6 +208,78 @@ export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+interface DicomPreviewProps {
+  imageUrl: string;
+  fileName: string;
+}
+
+function DicomPreview({ imageUrl, fileName }: DicomPreviewProps) {
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    let mounted = true;
+    const element = canvasRef.current;
+    if (!element) {
+      return () => undefined;
+    }
+
+    setError(null);
+    setIsLoading(true);
+
+    loadCornerstone()
+      .then((cornerstone) => {
+        if (!mounted || !element) return;
+        cornerstone.enable(element);
+        return cornerstone
+          .loadImage(`wadouri:${imageUrl}`)
+          .then((image) => {
+            if (!mounted) return;
+            cornerstone.displayImage(element, image);
+            setIsLoading(false);
+          })
+          .catch((err) => {
+            console.error('Failed to load DICOM image', err);
+            if (!mounted) return;
+            setError('Unable to render this DICOM file. Use Download to open it in a dedicated viewer.');
+            setIsLoading(false);
+          });
+      })
+      .catch((err) => {
+        console.error('Failed to initialize DICOM viewer', err);
+        if (!mounted) return;
+        setError('Unable to initialize DICOM viewer.');
+        setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+      if (element && cornerstoneInstance) {
+        try {
+          cornerstoneInstance.disable(element);
+        } catch (err) {
+          console.warn('Error cleaning up DICOM viewer', err);
+        }
+      }
+    };
+  }, [imageUrl]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  return (
+    <div className="flex flex-col items-center justify-center w-full h-full p-4">
+      <div
+        ref={canvasRef}
+        className="w-full h-[480px] bg-black/80 rounded-lg overflow-hidden"
+        aria-label={`DICOM preview for ${fileName}`}
+      />
+      {isLoading && <p className="mt-2 text-xs text-slate-400">Loading DICOM image...</p>}
+      {error && <p className="mt-2 text-xs text-rose-400 text-center max-w-sm">{error}</p>}
     </div>
   );
 }
