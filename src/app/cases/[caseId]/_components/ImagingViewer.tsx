@@ -44,7 +44,9 @@ const buildPublicUrl = (path: string, options?: { download?: boolean }) => {
 };
 
 type CornerstoneType = typeof import('cornerstone-core');
+type DicomParserType = typeof import('dicom-parser');
 let cornerstoneInstance: CornerstoneType | null = null;
+let dicomParserInstance: DicomParserType | null = null;
 let cornerstoneInitPromise: Promise<CornerstoneType> | null = null;
 
 const loadCornerstone = async (): Promise<CornerstoneType> => {
@@ -62,6 +64,7 @@ const loadCornerstone = async (): Promise<CornerstoneType> => {
       wadoLoader.external.dicomParser = dicomParser;
       wadoLoader.configure({ useWebWorkers: false });
       cornerstoneInstance = cornerstone;
+      dicomParserInstance = dicomParser;
       return cornerstone;
     })();
   }
@@ -75,6 +78,9 @@ const loadCornerstone = async (): Promise<CornerstoneType> => {
 
 export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(imagingPaths[0] || null);
+  const [metadata, setMetadata] = useState<{ label: string; value: string }[]>([]);
+  const [isMetadataLoading, setIsMetadataLoading] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
 
   const selectedFile = useMemo(() => {
     if (!selectedPath) {
@@ -90,6 +96,74 @@ export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
       type,
     };
   }, [selectedPath]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadMetadata = async () => {
+      if (!selectedFile) {
+        setMetadata([]);
+        return;
+      }
+      setMetadataError(null);
+      setIsMetadataLoading(true);
+
+      if (selectedFile.type === 'dicom') {
+        try {
+          if (!dicomParserInstance) {
+            await loadCornerstone();
+          }
+          const response = await fetch(selectedFile.url);
+          const buffer = await response.arrayBuffer();
+          const byteArray = new Uint8Array(buffer);
+          const parser = dicomParserInstance ?? (await import('dicom-parser'));
+          const dataSet = parser.parseDicom(byteArray);
+          const entries: { label: string; value: string }[] = [];
+          const tag = (hex: string) => dataSet.string(hex as never);
+          const text = (hex: string) => dataSet.text?.(hex as never);
+          const add = (label: string, value?: string | null) => {
+            if (value) entries.push({ label, value });
+          };
+          add('Patient Name', tag('x00100010'));
+          add('Patient ID', tag('x00100020'));
+          add('Study Date', tag('x00080020'));
+          add('Modality', tag('x00080060'));
+          add('Study Description', text?.('x00081030'));
+          add('Series Description', text?.('x0008103e'));
+          add('Body Part', tag('x00180015'));
+          if (!entries.length) {
+            entries.push({ label: 'Metadata', value: 'No DICOM metadata available.' });
+          }
+          if (!cancelled) {
+            setMetadata(entries);
+          }
+        } catch (err) {
+          console.error('Failed to load DICOM metadata', err);
+          if (!cancelled) {
+            setMetadata([]);
+            setMetadataError('Unable to read DICOM metadata.');
+          }
+        } finally {
+          if (!cancelled) {
+            setIsMetadataLoading(false);
+          }
+        }
+      } else {
+        if (!cancelled) {
+          setMetadata([
+            { label: 'File name', value: selectedFile.name },
+            { label: 'File type', value: selectedFile.type.toUpperCase() },
+          ]);
+          setIsMetadataLoading(false);
+        }
+      }
+    };
+
+    loadMetadata();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFile]);
 
   if (!imagingPaths.length) {
     return null;
@@ -147,6 +221,25 @@ export function ImagingViewer({ imagingPaths }: ImagingViewerProps) {
                 Download
               </a>
             </div>
+          </div>
+          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">File Metadata</p>
+            {isMetadataLoading ? (
+              <p className="text-sm text-slate-500">Loading metadata...</p>
+            ) : metadata.length > 0 ? (
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {metadata.map((entry) => (
+                  <div key={`${entry.label}-${entry.value}`} className="bg-white rounded-lg border border-slate-200 p-3">
+                    <dt className="text-xs font-medium text-slate-500">{entry.label}</dt>
+                    <dd className="text-sm text-slate-800 mt-0.5">{entry.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="text-sm text-slate-500">
+                {metadataError ? metadataError : 'No metadata available for this file.'}
+              </p>
+            )}
           </div>
         </div>
       )}
