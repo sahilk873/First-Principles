@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Profile, AnatomyRegion } from '@/types/database';
@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DictationTextarea } from '@/components/ui/DictationTextarea';
 import { clsx } from 'clsx';
 import {
   submitCase,
@@ -310,7 +311,8 @@ export function CaseWizard({ profile, existingCase }: CaseWizardProps) {
           setErrors({ submit: result.error || 'Failed to save draft' });
         }
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Error saving case draft', error);
       setErrors({ submit: 'An unexpected error occurred' });
     } finally {
       setIsSubmitting(false);
@@ -339,7 +341,8 @@ export function CaseWizard({ profile, existingCase }: CaseWizardProps) {
           setErrors({ submit: result.error || 'Failed to submit case' });
         }
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Error submitting case', error);
       setErrors({ submit: 'An unexpected error occurred' });
     } finally {
       setIsSubmitting(false);
@@ -369,7 +372,6 @@ export function CaseWizard({ profile, existingCase }: CaseWizardProps) {
         return (
           <Step4ImagingUpload
             formData={formData}
-            errors={errors}
             handleFileUpload={handleFileUpload}
             removeFile={removeFile}
             uploadProgress={uploadProgress}
@@ -524,23 +526,14 @@ function Step1BasicInfo({ formData, errors, updateFormData }: Step1Props) {
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Symptom Summary</label>
-        <textarea
-          value={formData.symptom_summary}
-          onChange={(e) => updateFormData('symptom_summary', e.target.value)}
-          placeholder="Brief summary of patient's primary symptoms..."
-          rows={4}
-          className={clsx(
-            'w-full rounded-lg border bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition-colors',
-            'focus:outline-none focus:ring-2',
-            errors.symptom_summary
-              ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-              : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/20'
-          )}
-        />
-        {errors.symptom_summary && <p className="mt-1.5 text-sm text-red-600">{errors.symptom_summary}</p>}
-      </div>
+      <DictationTextarea
+        label="Symptom Summary"
+        value={formData.symptom_summary}
+        onChange={(value) => updateFormData('symptom_summary', value)}
+        placeholder="Brief summary of patient's primary symptoms..."
+        rows={4}
+        error={errors.symptom_summary}
+      />
     </div>
   );
 }
@@ -876,23 +869,14 @@ function Step3ProposedProcedure({ formData, errors, updateFormData }: Step3Props
       </div>
 
       {/* Free Text Summary */}
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Clinical Rationale</label>
-        <textarea
-          value={formData.free_text_summary}
-          onChange={(e) => updateFormData('free_text_summary', e.target.value)}
-          placeholder="Explain the clinical rationale for the proposed surgical intervention..."
-          rows={6}
-          className={clsx(
-            'w-full rounded-lg border bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition-colors',
-            'focus:outline-none focus:ring-2',
-            errors.free_text_summary
-              ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-              : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/20'
-          )}
-        />
-        {errors.free_text_summary && <p className="mt-1.5 text-sm text-red-600">{errors.free_text_summary}</p>}
-      </div>
+      <DictationTextarea
+        label="Clinical Rationale"
+        value={formData.free_text_summary}
+        onChange={(value) => updateFormData('free_text_summary', value)}
+        placeholder="Explain the clinical rationale for the proposed surgical intervention..."
+        rows={6}
+        error={errors.free_text_summary}
+      />
     </div>
   );
 }
@@ -902,13 +886,12 @@ function Step3ProposedProcedure({ formData, errors, updateFormData }: Step3Props
 // ============================================
 interface Step4Props {
   formData: CaseFormData;
-  errors: Record<string, string>;
   handleFileUpload: (files: FileList) => void;
   removeFile: (index: number) => void;
   uploadProgress: Record<string, number>;
 }
 
-function Step4ImagingUpload({ formData, errors, handleFileUpload, removeFile, uploadProgress }: Step4Props) {
+function Step4ImagingUpload({ formData, handleFileUpload, removeFile, uploadProgress }: Step4Props) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDrop = (e: React.DragEvent) => {
@@ -1056,4 +1039,3 @@ function Step4ImagingUpload({ formData, errors, handleFileUpload, removeFile, up
     </div>
   );
 }
-

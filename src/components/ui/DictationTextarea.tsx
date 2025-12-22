@@ -74,6 +74,7 @@ export const DictationTextarea = forwardRef<HTMLTextAreaElement, DictationTextar
       // Check for Web Speech API support
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsSupported(!!SpeechRecognitionAPI);
 
       if (SpeechRecognitionAPI) {
@@ -81,16 +82,6 @@ export const DictationTextarea = forwardRef<HTMLTextAreaElement, DictationTextar
         recognitionRef.current.continuous = true;
         recognitionRef.current.interimResults = true;
         recognitionRef.current.lang = 'en-US';
-
-        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          let transcript = '';
-          for (let i = 0; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-          }
-          // Append to existing text with a space
-          const newValue = value ? `${value} ${transcript}` : transcript;
-          onChange(newValue.trim());
-        };
 
         recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
           console.error('Speech recognition error:', event.error);
@@ -166,7 +157,7 @@ export const DictationTextarea = forwardRef<HTMLTextAreaElement, DictationTextar
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                     </span>
-                    Recording...
+                    Stop Recording
                   </>
                 ) : (
                   <>
@@ -202,7 +193,8 @@ export const DictationTextarea = forwardRef<HTMLTextAreaElement, DictationTextar
                 : isListening
                 ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/30'
                 : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/20',
-              disabled && 'bg-slate-50 cursor-not-allowed'
+              disabled && 'bg-slate-50 cursor-not-allowed',
+              className
             )}
             {...props}
           />
@@ -233,4 +225,3 @@ export const DictationTextarea = forwardRef<HTMLTextAreaElement, DictationTextar
 );
 
 DictationTextarea.displayName = 'DictationTextarea';
-
