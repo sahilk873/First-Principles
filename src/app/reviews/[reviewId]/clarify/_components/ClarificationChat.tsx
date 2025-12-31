@@ -170,7 +170,14 @@ export function ClarificationChat({
     return Number.isNaN(ts) ? fallback : ts;
   };
 
-  const displayMessages = answeredPairs.flatMap((pair, idx) => {
+  type DisplayMessage = {
+    key: string;
+    role: 'SYSTEM' | 'REVIEWER' | 'CLINICIAN';
+    message: ClarificationMessage;
+    order: number;
+  };
+
+  const displayMessages: DisplayMessage[] = answeredPairs.flatMap((pair, idx) => {
     const answerOrder = parseTimestamp(pair.answer.created_at, idx);
     return [
       {
@@ -416,6 +423,7 @@ export function ClarificationChat({
           {userRole === 'REVIEWER' && !allQuestionsAnswered ? (
             <>
               <DictationTextarea
+                label="Your Response"
                 value={response}
                 onChange={setResponse}
                 placeholder="Type your response or click Dictate to use voice input..."
@@ -425,7 +433,7 @@ export function ClarificationChat({
                 <Button variant="secondary" onClick={handleSkip} disabled={isSubmitting}>
                   Skip Question
                 </Button>
-                <Button onClick={handleSubmitResponse} disabled={isSubmitting || !response.trim()} isLoading={isSubmitting}>
+                <Button onClick={() => handleSubmitResponse()} disabled={isSubmitting || !response.trim()} isLoading={isSubmitting}>
                   Submit Response
                 </Button>
               </div>
@@ -436,6 +444,7 @@ export function ClarificationChat({
                 You&apos;ve answered all the clarification questions. Would you like to add any additional comments?
               </p>
               <DictationTextarea
+                label="Additional Comments"
                 value={response}
                 onChange={setResponse}
                 placeholder="Any additional comments? (optional)"
@@ -460,6 +469,7 @@ export function ClarificationChat({
             // Clinician view
             <>
               <DictationTextarea
+                label="Follow-up Question"
                 value={response}
                 onChange={setResponse}
                 placeholder="Ask a follow-up question to the reviewer..."

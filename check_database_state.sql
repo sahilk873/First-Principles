@@ -140,7 +140,38 @@ FROM storage.buckets
 WHERE id = 'imaging';
 
 -- ============================================
--- 12. CHECK FOR RLS RECURSION ISSUES
+-- 12. CHECK AUTH USERS (where email uniqueness is enforced)
+-- ============================================
+-- This is where Supabase checks if an email already exists
+-- The email uniqueness constraint is enforced in auth.users table
+SELECT 
+    'Auth Users' as check_type,
+    COUNT(*) as total_count,
+    COUNT(*) FILTER (WHERE email_confirmed_at IS NOT NULL) as confirmed_count,
+    COUNT(*) FILTER (WHERE email_confirmed_at IS NULL) as unconfirmed_count
+FROM auth.users;
+
+-- List all registered emails (this is what Supabase checks against)
+SELECT 
+    id,
+    email,
+    email_confirmed_at IS NOT NULL as is_confirmed,
+    created_at,
+    updated_at
+FROM auth.users
+ORDER BY created_at DESC;
+
+-- Check if a specific email exists (replace with your email)
+-- SELECT 
+--     id,
+--     email,
+--     email_confirmed_at IS NOT NULL as is_confirmed,
+--     created_at
+-- FROM auth.users
+-- WHERE email = 'your-email@example.com';
+
+-- ============================================
+-- 13. CHECK FOR RLS RECURSION ISSUES
 -- ============================================
 -- Check if policies are using helper functions (good) or direct queries (bad)
 SELECT 

@@ -95,3 +95,4 @@ If MCP is working, the assistant will be able to execute SQL queries directly.
 
 
 
+

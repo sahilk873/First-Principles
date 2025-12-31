@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, TableEmptyState } from '@/components/ui/Table';
 import { Select } from '@/components/ui/Select';
+import { Input } from '@/components/ui/Input';
 import { formatDate } from '@/lib/utils/date';
-import { updateUserRole, toggleExpertCertification, updateUserOrganization } from '@/lib/actions/admin';
+import { updateUserRole, toggleExpertCertification, updateUserOrganization, quickCreateUser } from '@/lib/actions/admin';
 
 interface ProfileWithOrg extends Profile {
   organization?: Organization;
@@ -31,6 +32,10 @@ export function UserManagementTable({
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserRole, setNewUserRole] = useState<UserRole>('CLINICIAN');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [provisionedCredentials, setProvisionedCredentials] = useState<{ email: string } | null>(null);
 
   const isSysAdmin = currentUserRole === 'SYS_ADMIN';
 
@@ -111,6 +116,23 @@ export function UserManagementTable({
     label: org.name,
   }));
 
+  const handleQuickCreate = async () => {
+    setError(null);
+    setSuccess(null);
+    setProvisionedCredentials(null);
+    startTransition(async () => {
+      const result = await quickCreateUser(newUserName, newUserRole, newUserEmail);
+      if (result.success && result.email) {
+        setProvisionedCredentials({ email: result.email });
+        setSuccess('Invitation email sent to the new user.');
+        setNewUserName('');
+        setNewUserEmail('');
+      } else {
+        setError(result.error || 'Failed to create user');
+      }
+    });
+  };
+
   return (
     <div>
       {/* Feedback Messages */}
@@ -124,6 +146,57 @@ export function UserManagementTable({
           {success}
         </div>
       )}
+
+      <Card className="mb-6">
+        <div className="p-4 space-y-3 md:space-y-0 md:flex md:items-end md:gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+            <Input
+              value={newUserName}
+              onChange={(e) => setNewUserName(e.target.value)}
+              placeholder="Dr. Jane Doe"
+              disabled={isPending}
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <Input
+              type="email"
+              value={newUserEmail}
+              onChange={(e) => setNewUserEmail(e.target.value)}
+              placeholder="user@example.com"
+              disabled={isPending}
+            />
+          </div>
+          <div className="w-full md:w-48">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+            <Select
+              options={roleOptions}
+              value={newUserRole}
+              onChange={(e) => setNewUserRole(e.target.value as UserRole)}
+              disabled={isPending}
+              className="w-full"
+            />
+          </div>
+          <Button
+            onClick={handleQuickCreate}
+            disabled={!newUserName.trim() || !newUserEmail.trim() || isPending}
+            isLoading={isPending}
+          >
+            Send Invite
+          </Button>
+        </div>
+        {provisionedCredentials && (
+          <div className="px-4 pb-4 text-sm text-slate-600">
+            <p className="font-medium text-slate-800">
+              Invite sent to <code className="bg-slate-100 px-2 py-0.5 rounded">{provisionedCredentials.email}</code>
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              They will receive an email with instructions to set their password.
+            </p>
+          </div>
+        )}
+      </Card>
 
       <Card padding="none">
         <div className="px-6 py-4 border-b border-slate-100">
@@ -247,4 +320,3 @@ export function UserManagementTable({
     </div>
   );
 }
-

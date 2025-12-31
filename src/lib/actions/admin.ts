@@ -1,12 +1,33 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
-import { UserRole, OrganizationType, Profile, Organization } from '@/types/database';
+import { UserRole, OrganizationType, Profile } from '@/types/database';
+import { randomBytes } from 'crypto';
 
 // Helper types for partial profile data
 type ProfileRole = Pick<Profile, 'id' | 'role' | 'org_id'>;
 type ProfileCert = Pick<Profile, 'id' | 'is_expert_certified' | 'org_id'>;
+
+const DEFAULT_PROVISIONING_DOMAIN = process.env.USER_PROVISIONING_EMAIL_DOMAIN || 'firstprinciples.local';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+const slugifyName = (name: string) => {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/\.+/g, '.')
+    .replace(/^\.+|\.+$/g, '');
+  return slug || 'user';
+};
+
+const generateEmail = (name: string) => {
+  const slug = slugifyName(name);
+  const suffix = randomBytes(2).toString('hex');
+  return `${slug}.${suffix}@${DEFAULT_PROVISIONING_DOMAIN}`;
+};
 
 // ============================================
 // USER MANAGEMENT ACTIONS
@@ -216,15 +237,23 @@ export async function updateUserOrganization(
 // Note: This creates a profile record only. The actual Supabase Auth user
 // must be created separately (e.g., via invite link or dashboard).
 // In production, you would use Supabase's invite API or admin auth.
-export async function addUserProfile(
-  email: string,
+export async function quickCreateUser(
   name: string,
   role: UserRole,
-  orgId: string
-): Promise<{ success: boolean; error?: string }> {
+  email?: string
+): Promise<{ success: boolean; email?: string; inviteSent?: boolean; error?: string }> {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return { success: false, error: 'Name is required' };
+  }
+
+  const providedEmail = email?.trim();
+  if (providedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(providedEmail)) {
+    return { success: false, error: 'Please enter a valid email address' };
+  }
+
   const supabase = await createClient();
 
-  // Get current user
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -233,12 +262,16 @@ export async function addUserProfile(
     return { success: false, error: 'Not authenticated' };
   }
 
-  // Get current user's profile
-  const { data: currentProfileData } = await supabase
+  const { data: currentProfileData, error: profileError } = await supabase
     .from('profiles')
     .select('id, role, org_id')
     .eq('id', user.id)
     .single();
+
+  if (profileError) {
+    console.error('Error loading current profile:', profileError);
+    return { success: false, error: 'Failed to load current profile' };
+  }
 
   const currentProfile = currentProfileData as ProfileRole | null;
 
@@ -246,29 +279,63 @@ export async function addUserProfile(
     return { success: false, error: 'Profile not found' };
   }
 
-  // Check permissions
+  if (!currentProfile.org_id) {
+    return { success: false, error: 'Your profile is missing an organization assignment' };
+  }
+
   if (currentProfile.role !== 'ORG_ADMIN' && currentProfile.role !== 'SYS_ADMIN') {
-    return { success: false, error: 'Not authorized to add users' };
+    return { success: false, error: 'Not authorized to create users' };
   }
 
-  // ORG_ADMIN restrictions
-  if (currentProfile.role === 'ORG_ADMIN') {
-    if (orgId !== currentProfile.org_id) {
-      return { success: false, error: 'Cannot add users to other organizations' };
-    }
-    if (role === 'SYS_ADMIN') {
-      return { success: false, error: 'Cannot create system admin users' };
-    }
+  if (currentProfile.role === 'ORG_ADMIN' && role === 'SYS_ADMIN') {
+    return { success: false, error: 'Cannot create system admin users' };
   }
 
-  // Note: This is a placeholder. In production, you would:
-  // 1. Call Supabase Admin API to create the auth user and send invite
-  // 2. The profile would be created via a database trigger or in the invite callback
-  // For now, we just return an informational message
-  
-  return { 
-    success: false, 
-    error: 'User creation requires Supabase Auth integration. Please create users through the Supabase dashboard and then manually assign their profile.' 
+  const adminClient = createServiceRoleClient();
+  const targetEmail = providedEmail || generateEmail(trimmedName);
+
+  const { data: inviteData, error: adminError } = await adminClient.auth.admin.inviteUserByEmail(targetEmail, {
+    data: { name: trimmedName },
+    redirectTo: `${SITE_URL}/auth/complete-invite`,
+  });
+
+  if (adminError || !inviteData?.user?.id) {
+    console.error('Error inviting auth user:', adminError);
+    return { success: false, error: adminError?.message || 'Failed to invite user' };
+  }
+
+  const newUserId = inviteData.user.id;
+
+  const { error: profileInsertError } = await adminClient.from('profiles').insert({
+    id: newUserId,
+    org_id: currentProfile.org_id,
+    email: targetEmail,
+    name: trimmedName,
+    role,
+    is_expert_certified: role === 'EXPERT_REVIEWER' ? false : null,
+  } as never);
+
+  if (profileInsertError) {
+    console.error('Error inserting profile:', profileInsertError);
+    await adminClient.auth.admin.deleteUser(newUserId);
+    return { success: false, error: 'Failed to persist user profile' };
+  }
+
+  await adminClient.from('user_provisioning_events').insert({
+    created_by: currentProfile.id,
+    new_user_id: newUserId,
+    name: trimmedName,
+    role,
+    generated_email: targetEmail,
+    password_hint: 'Invite',
+  } as never);
+
+  revalidatePath('/admin/users');
+
+  return {
+    success: true,
+    email: targetEmail,
+    inviteSent: true,
   };
 }
 
@@ -455,4 +522,3 @@ export async function markAllNotificationsAsRead(): Promise<{ success: boolean; 
   revalidatePath('/notifications');
   return { success: true };
 }
-
