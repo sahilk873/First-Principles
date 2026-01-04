@@ -170,7 +170,14 @@ export function ClarificationChat({
     return Number.isNaN(ts) ? fallback : ts;
   };
 
-  const displayMessages = answeredPairs.flatMap((pair, idx) => {
+  type DisplayMessageRole = 'SYSTEM' | 'REVIEWER' | 'CLINICIAN';
+  
+  const displayMessages: Array<{
+    key: string;
+    role: DisplayMessageRole;
+    message: ClarificationMessage;
+    order: number;
+  }> = answeredPairs.flatMap((pair, idx) => {
     const answerOrder = parseTimestamp(pair.answer.created_at, idx);
     return [
       {
@@ -425,7 +432,7 @@ export function ClarificationChat({
                 <Button variant="secondary" onClick={handleSkip} disabled={isSubmitting}>
                   Skip Question
                 </Button>
-                <Button onClick={handleSubmitResponse} disabled={isSubmitting || !response.trim()} isLoading={isSubmitting}>
+                <Button onClick={() => handleSubmitResponse()} disabled={isSubmitting || !response.trim()} isLoading={isSubmitting}>
                   Submit Response
                 </Button>
               </div>
