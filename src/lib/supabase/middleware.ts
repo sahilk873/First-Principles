@@ -29,15 +29,40 @@ export async function updateSession(request: NextRequest) {
   // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   // Protected routes
   const protectedPaths = ['/dashboard'];
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
+
+  let user = null;
+  try {
+    const {
+      data: { user: fetchedUser },
+      error,
+    } = await supabase.auth.getUser();
+    
+    if (error) {
+      // Only log errors on protected paths or unexpected errors
+      // "Auth session missing" on public routes is expected and shouldn't be logged
+      const isExpectedError = 
+        error.message?.includes('session missing') || 
+        error.message?.includes('JWT expired') ||
+        error.message?.includes('Invalid Refresh Token');
+      
+      if (isProtectedPath || !isExpectedError) {
+        console.error('Auth error in middleware:', error.message);
+      }
+    } else {
+      user = fetchedUser;
+    }
+  } catch (error) {
+    // Handle network errors or Supabase being unavailable
+    // These are always unexpected and should be logged
+    console.error('Failed to fetch user in middleware:', error);
+    // Continue without user - let the request proceed
+    // This prevents the app from crashing if Supabase is temporarily unavailable
+  }
 
   if (isProtectedPath && !user) {
     // No user, redirect to login
