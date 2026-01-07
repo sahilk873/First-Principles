@@ -156,6 +156,150 @@ export default function LandingPage() {
           </div>
         </div>
 
+        {/* About Us Panel */}
+        <section className="bg-white py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-3xl mx-auto text-center mb-12">
+              <h2 className="text-4xl font-bold text-slate-900 mb-4">About Us</h2>
+              <p className="text-xl text-slate-600 leading-relaxed">
+                First Principles is dedicated to advancing evidence-based spine surgery through rigorous peer review and expert collaboration.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-8 border border-blue-100">
+                <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white mb-4">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-3">Our Mission</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  To empower spine surgeons with objective, evidence-based assessments that improve patient outcomes and reduce unnecessary procedures through expert peer review.
+                </p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-8 border border-blue-100">
+                <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center text-white mb-4">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-3">Our Values</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  We uphold the highest standards of clinical excellence, transparency, and ethical practice in every review, ensuring unbiased and meaningful assessments.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Expert Panel Section */}
+        <section className="bg-gradient-to-br from-slate-50 to-blue-50 py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-3xl mx-auto text-center mb-12">
+              <h2 className="text-4xl font-bold text-slate-900 mb-4">Expert Panel</h2>
+              <p className="text-xl text-slate-600 leading-relaxed">
+                Our panel consists of board-certified spine surgeons and recognized experts with extensive experience in evaluating surgical appropriateness.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  title: 'Board Certified Surgeons',
+                  description: 'All reviewers are board-certified orthopedic or neurological spine surgeons with active practices.',
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: 'Diverse Expertise',
+                  description: 'Reviewers represent various subspecialties including cervical, thoracic, and lumbar spine surgery.',
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: 'Continuous Training',
+                  description: 'Panel members undergo regular training on appropriateness criteria and review standards.',
+                  icon: (
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  ),
+                },
+              ].map((item, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-2xl p-8 border border-slate-200 hover:shadow-lg transition-all duration-200"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white mb-4">
+                    {item.icon}
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-3">{item.title}</h3>
+                  <p className="text-slate-600 leading-relaxed">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Types of Spine Surgery Panel */}
+        <section className="bg-white py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-3xl mx-auto text-center mb-12">
+              <h2 className="text-4xl font-bold text-slate-900 mb-4">Types of Spine Surgery</h2>
+              <p className="text-xl text-slate-600 leading-relaxed">
+                Our platform supports review of all major spine surgery procedures across cervical, thoracic, and lumbar regions.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                {
+                  title: 'Cervical',
+                  procedures: ['ACDF', 'Laminectomy', 'Foraminotomy', 'Fusion'],
+                  color: 'from-blue-500 to-blue-600',
+                },
+                {
+                  title: 'Thoracic',
+                  procedures: ['Corpectomy', 'Fusion', 'Decompression', 'Stabilization'],
+                  color: 'from-blue-600 to-blue-700',
+                },
+                {
+                  title: 'Lumbar',
+                  procedures: ['TLIF/PLIF', 'Discectomy', 'Laminectomy', 'Fusion'],
+                  color: 'from-blue-700 to-blue-800',
+                },
+                {
+                  title: 'Minimally Invasive',
+                  procedures: ['Endoscopic', 'MIS Fusion', 'Laser Discectomy', 'Robotic-Assisted'],
+                  color: 'from-blue-800 to-blue-900',
+                },
+              ].map((type, index) => (
+                <div
+                  key={index}
+                  className="bg-white rounded-2xl p-6 border border-slate-200 hover:shadow-lg transition-all duration-200"
+                >
+                  <div className={`w-full h-2 rounded-full bg-gradient-to-r ${type.color} mb-4`} />
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4">{type.title}</h3>
+                  <ul className="space-y-2">
+                    {type.procedures.map((procedure, procIndex) => (
+                      <li key={procIndex} className="flex items-center text-slate-600 text-sm">
+                        <svg className="w-4 h-4 text-blue-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        {procedure}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Stats Section */}
         <section className="border-y border-slate-200 bg-white">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
