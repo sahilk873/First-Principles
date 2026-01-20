@@ -303,7 +303,7 @@ export default async function CaseResultPage({ params }: CaseResultPageProps) {
                   Detailed assessments from {submittedReviews.length} expert reviewers
                 </p>
               </div>
-              <Badge variant="success" size="lg">
+              <Badge variant="success" size="md">
                 {submittedReviews.length} Completed
               </Badge>
             </div>
