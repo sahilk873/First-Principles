@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'First Principles - Spine Surgery Review Platform',
+  title: 'First Principles - Healthcare Decision Intelligence',
   description:
-    'A secure platform where clinicians submit spine surgery cases for blinded expert review. Expert reviewers score the appropriateness of proposed procedures.',
-  keywords: ['spine surgery', 'medical review', 'healthcare', 'expert review', 'appropriateness'],
+    'A scalable, data-driven decision-intelligence system for healthcare. Clean, precise, and intelligent clinical review platform.',
+  keywords: ['healthcare intelligence', 'clinical decision support', 'medical review', 'data-driven healthcare', 'expert review'],
 };
 
 export default function RootLayout({
@@ -19,11 +19,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-slate-50 antialiased">{children}</body>
+      <body className="min-h-screen bg-[#F7F9FB] antialiased">{children}</body>
     </html>
   );
 }

@@ -4,48 +4,56 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Brand Colors - Professional Medical Theme */
-  --color-primary: #0f766e; /* Teal - clinical, trustworthy */
-  --color-primary-light: #14b8a6;
-  --color-primary-dark: #0d5f56;
-  --color-accent: #0891b2; /* Cyan - complementary medical color */
-  --color-accent-light: #22d3ee;
-  --color-secondary: #7c3aed; /* Purple - sophistication */
-  --color-secondary-light: #a855f7;
-  --color-secondary-dark: #6b21a8;
+  /* First Principles Brand Colors - Modern Systems-Level Healthcare */
+  --color-midnight-blue: #0E1A26; /* Primary dark - structure, depth */
+  --color-slate-gray: #3A4754; /* Secondary - text, UI elements */
+  --color-cool-teal: #2FA4A9; /* Primary accent - actions, focus */
+  --color-muted-indigo: #4A6FA5; /* Secondary accent - data, insights */
+  --color-light-gray: #F7F9FB; /* Backgrounds - clean, spacious */
+  --color-signal-teal: #1ECAD3; /* Accent - highlights, alerts */
 
-  /* Medical-themed Neutrals */
-  --color-slate-50: #f8fafc;
-  --color-slate-100: #f1f5f9;
-  --color-slate-200: #e2e8f0;
-  --color-slate-300: #cbd5e1;
-  --color-slate-400: #94a3b8;
-  --color-slate-500: #64748b;
+  /* Primary Brand Colors */
+  --color-primary: #2FA4A9; /* Cool Teal - primary actions */
+  --color-primary-light: #1ECAD3; /* Signal Teal - hover states */
+  --color-primary-dark: #258A8E; /* Darker teal for pressed states */
+  --color-accent: #1ECAD3; /* Signal Teal - key interactions */
+  --color-accent-light: #4DD4DB;
+  --color-secondary: #4A6FA5; /* Muted Indigo - secondary actions */
+  --color-secondary-light: #6B8EC7;
+  --color-secondary-dark: #3A5783;
+
+  /* Neutral Palette - Clean and Precise */
+  --color-slate-50: #F7F9FB; /* Light Gray - main background */
+  --color-slate-100: #EEF2F6;
+  --color-slate-200: #E2E8EF;
+  --color-slate-300: #CBD5E1;
+  --color-slate-400: #94A3B8;
+  --color-slate-500: #64748B;
   --color-slate-600: #475569;
-  --color-slate-700: #334155;
-  --color-slate-800: #1e293b;
-  --color-slate-900: #0f172a;
+  --color-slate-700: #3A4754; /* Slate Gray - primary text */
+  --color-slate-800: #1E293B;
+  --color-slate-900: #0E1A26; /* Midnight Blue - deepest text */
 
-  /* Enhanced Semantic Colors for Medical Context */
-  --color-success: #059669; /* Emerald - health/positive outcomes */
+  /* Semantic Colors - Refined for Healthcare Intelligence */
+  --color-success: #059669; /* Emerald - positive outcomes */
   --color-success-light: #10b981;
-  --color-warning: #d97706; /* Amber - caution/monitoring */
+  --color-warning: #d97706; /* Amber - caution */
   --color-warning-light: #f59e0b;
-  --color-error: #dc2626; /* Red - critical/error states */
+  --color-error: #dc2626; /* Red - critical */
   --color-error-light: #ef4444;
-  --color-info: #0891b2; /* Cyan - information/education */
-  --color-info-light: #22d3ee;
+  --color-info: #2FA4A9; /* Cool Teal - information */
+  --color-info-light: #1ECAD3;
 
-  /* Medical Status Colors */
-  --color-pending: #f59e0b; /* Amber - awaiting review */
-  --color-reviewing: #0891b2; /* Cyan - in progress */
-  --color-completed: #059669; /* Emerald - completed successfully */
-  --color-rejected: #dc2626; /* Red - not approved */
+  /* Status Colors */
+  --color-pending: #f59e0b;
+  --color-reviewing: #2FA4A9; /* Cool Teal */
+  --color-completed: #059669;
+  --color-rejected: #dc2626;
 
-  /* Typography */
-  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
-  --font-display: 'Instrument Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Typography - Inter for precision and clarity */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', monospace;
 
   /* Spacing */
   --space-unit: 0.25rem;
@@ -65,43 +73,43 @@
 
   /* Background */
 
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 
-  --background: oklch(1 0 0);
+  --background: oklch(0.985 0.002 240); /* Light Gray with subtle cool tone */
 
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.25 0.015 240); /* Slate Gray for text */
 
-  --card: oklch(1 0 0);
+  --card: oklch(0.995 0.001 240); /* Pure white with hint of cool */
 
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.25 0.015 240);
 
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.995 0.001 240);
 
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.25 0.015 240);
 
-  --primary: oklch(0.205 0 0);
+  --primary: oklch(0.58 0.088 194); /* Cool Teal */
 
-  --primary-foreground: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.99 0 0);
 
-  --secondary: oklch(0.97 0 0);
+  --secondary: oklch(0.55 0.065 245); /* Muted Indigo */
 
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary-foreground: oklch(0.99 0 0);
 
-  --muted: oklch(0.97 0 0);
+  --muted: oklch(0.97 0.003 240);
 
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.5 0.01 240);
 
-  --accent: oklch(0.97 0 0);
+  --accent: oklch(0.68 0.12 192); /* Signal Teal */
 
-  --accent-foreground: oklch(0.205 0 0);
+  --accent-foreground: oklch(0.99 0 0);
 
   --destructive: oklch(0.577 0.245 27.325);
 
-  --border: oklch(0.922 0 0);
+  --border: oklch(0.91 0.005 240);
 
-  --input: oklch(0.922 0 0);
+  --input: oklch(0.91 0.005 240);
 
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.58 0.088 194);
 
   --chart-1: oklch(0.646 0.222 41.116);
 
@@ -131,17 +139,17 @@
 }
 
 @theme inline {
-  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
-  --font-display: 'Instrument Sans', system-ui, -apple-system, sans-serif;
-  --color-primary: #0f766e;
-  --color-primary-light: #14b8a6;
-  --color-primary-dark: #0d5f56;
-  --color-accent: #0891b2;
-  --color-secondary: #7c3aed;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --color-primary: #2FA4A9;
+  --color-primary-light: #1ECAD3;
+  --color-primary-dark: #258A8E;
+  --color-accent: #1ECAD3;
+  --color-secondary: #4A6FA5;
   --color-success: #059669;
   --color-warning: #d97706;
   --color-error: #dc2626;
-  --color-info: #0891b2;
+  --color-info: #2FA4A9;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -184,36 +192,39 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     background-color: var(--background);
     color: var(--foreground);
     min-height: 100vh;
+    font-feature-settings: 'cv11', 'ss01';
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     font-weight: 600;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.02em;
+    color: var(--color-midnight-blue);
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply bg-teal-600 text-white hover:bg-teal-700 focus:ring-teal-500 shadow-sm hover:shadow-md;
+    @apply bg-[#2FA4A9] text-white hover:bg-[#1ECAD3] focus:ring-[#2FA4A9] shadow-sm hover:shadow;
   }
 
   .btn-secondary {
-    @apply bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus:ring-teal-500;
+    @apply bg-white text-[#3A4754] border border-slate-300 hover:bg-slate-50 hover:border-[#2FA4A9]/30 focus:ring-[#2FA4A9];
   }
 
   .btn-ghost {
-    @apply text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:ring-slate-500;
+    @apply text-[#3A4754] hover:text-[#0E1A26] hover:bg-slate-100 focus:ring-slate-400;
   }
 
   .btn-sm {
@@ -229,7 +240,7 @@
   }
 
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder-slate-400 transition-colors focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20;
+    @apply w-full rounded-md border border-slate-300 bg-white px-4 py-2.5 text-[#0E1A26] placeholder-slate-400 transition-colors focus:border-[#2FA4A9] focus:outline-none focus:ring-2 focus:ring-[#2FA4A9]/20;
   }
 
   .input-error {
@@ -237,15 +248,15 @@
   }
 
   .card {
-    @apply bg-white rounded-xl border border-slate-200 shadow-sm;
+    @apply bg-white rounded-lg border border-slate-200 shadow-sm;
   }
 
   .card-hover {
-    @apply hover:shadow-md hover:border-slate-300 transition-all duration-200;
+    @apply hover:shadow hover:border-slate-300 transition-all duration-200;
   }
 
   .label {
-    @apply block text-sm font-medium text-slate-700 mb-1.5;
+    @apply block text-sm font-medium text-[#3A4754] mb-1.5;
   }
 
   .error-text {
@@ -253,28 +264,28 @@
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-teal-600 to-teal-500 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-[#2FA4A9] to-[#1ECAD3] bg-clip-text text-transparent;
   }
 
-  /* Enhanced Typography for Clinical Readability */
+  /* Precise Typography for Systems-Level Intelligence */
   .text-display {
-    @apply text-3xl lg:text-4xl font-bold tracking-tight leading-tight;
+    @apply text-3xl lg:text-4xl font-semibold tracking-tight leading-tight text-[#0E1A26];
   }
 
   .text-heading {
-    @apply text-2xl lg:text-3xl font-semibold tracking-tight leading-tight;
+    @apply text-2xl lg:text-3xl font-semibold tracking-tight leading-tight text-[#0E1A26];
   }
 
   .text-subheading {
-    @apply text-xl lg:text-2xl font-semibold tracking-tight leading-snug;
+    @apply text-xl lg:text-2xl font-medium tracking-tight leading-snug text-[#0E1A26];
   }
 
   .text-title {
-    @apply text-lg lg:text-xl font-semibold leading-snug;
+    @apply text-lg lg:text-xl font-medium leading-snug text-[#0E1A26];
   }
 
   .text-body {
-    @apply text-base leading-relaxed;
+    @apply text-base leading-relaxed text-[#3A4754];
   }
 
   .text-caption {
@@ -282,16 +293,16 @@
   }
 
   .text-label {
-    @apply text-sm font-medium text-slate-700;
+    @apply text-sm font-medium text-[#3A4754];
   }
 
-  /* Medical Status Classes */
+  /* Status Classes - Clean and Intelligent */
   .status-pending {
     @apply bg-amber-50 text-amber-700 border-amber-200;
   }
 
   .status-reviewing {
-    @apply bg-cyan-50 text-cyan-700 border-cyan-200;
+    @apply bg-[#2FA4A9]/10 text-[#2FA4A9] border-[#2FA4A9]/30;
   }
 
   .status-completed {
@@ -302,13 +313,13 @@
     @apply bg-red-50 text-red-700 border-red-200;
   }
 
-  /* Professional Card Variants */
+  /* Card Variants - Modern and Precise */
   .card-clinical {
-    @apply bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200;
+    @apply bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow transition-all duration-200;
   }
 
   .card-dashboard {
-    @apply bg-gradient-to-br from-white to-slate-50 rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-200;
+    @apply bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md hover:border-[#2FA4A9]/20 transition-all duration-200;
   }
 
   /* Enhanced Spacing */

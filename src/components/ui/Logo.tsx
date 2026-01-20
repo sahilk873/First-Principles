@@ -16,8 +16,8 @@ export function Logo({ size = 'md', showText = true, href = '/' }: LogoProps) {
   };
 
   const content = (
-    <div className="flex items-center gap-2.5">
-      {/* Icon - Professional medical spine representation */}
+    <div className="flex items-center gap-3">
+      {/* Icon - Clean, minimal system structure representation */}
       <div className={`${sizes[size].icon} relative`}>
         <svg
           viewBox="0 0 40 40"
@@ -25,50 +25,36 @@ export function Logo({ size = 'md', showText = true, href = '/' }: LogoProps) {
           xmlns="http://www.w3.org/2000/svg"
           className="w-full h-full"
         >
-          {/* Background with medical gradient */}
-          <circle cx="20" cy="20" r="18" className="fill-teal-600" />
-
-          {/* Enhanced spine design with multiple vertebrae */}
-          {[0, 8, 16, 24, 32].map((y, i) => (
-            <g key={i} className={i === 2 ? 'opacity-100' : 'opacity-80'}>
-              <ellipse
-                cx="20"
-                cy={y + 6}
-                rx={i === 2 ? 6 : 4}
-                ry={i === 2 ? 3 : 2}
-                className="fill-white"
-              />
-            </g>
-          ))}
-
-          {/* Central medical cross */}
+          {/* Clean geometric structure suggesting systems and convergence */}
+          <rect x="4" y="4" width="32" height="32" rx="4" className="fill-[#0E1A26]" />
+          
+          {/* Layered structure - represents systems thinking */}
           <path
-            d="M18 16H22M20 14V18"
-            stroke="white"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            className="opacity-90"
+            d="M12 12H28V14H12V12Z"
+            className="fill-[#2FA4A9]"
           />
-
-          {/* Connecting spine line */}
           <path
-            d="M20 6V34"
-            stroke="white"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            className="opacity-70"
+            d="M12 18H28V20H12V18Z"
+            className="fill-[#1ECAD3]"
           />
+          <path
+            d="M12 24H28V26H12V24Z"
+            className="fill-[#4A6FA5]"
+          />
+          
+          {/* Vertical connector showing integration */}
+          <rect x="19" y="10" width="2" height="22" className="fill-white opacity-20" />
         </svg>
       </div>
       
       {showText && (
         <div className="flex flex-col leading-none">
-          <span className={`font-semibold tracking-tight text-slate-900 ${sizes[size].text}`}>
+          <span className={`font-semibold tracking-tight text-[#0E1A26] ${sizes[size].text}`}>
             First Principles
           </span>
           {size === 'lg' && (
-            <span className="text-xs text-slate-500 mt-0.5 tracking-wide">
-              SPINE SURGERY REVIEW
+            <span className="text-xs text-[#3A4754] mt-0.5 tracking-wide font-medium">
+              HEALTHCARE INTELLIGENCE
             </span>
           )}
         </div>

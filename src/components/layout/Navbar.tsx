@@ -31,15 +31,15 @@ export function Navbar({ user }: NavbarProps) {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'SYS_ADMIN':
-        return 'bg-purple-100 text-purple-700';
+        return 'bg-[#4A6FA5]/10 text-[#4A6FA5]';
       case 'ORG_ADMIN':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-[#2FA4A9]/10 text-[#2FA4A9]';
       case 'EXPERT_REVIEWER':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-[#1ECAD3]/10 text-[#1ECAD3]';
       case 'CLINICIAN':
-        return 'bg-slate-100 text-slate-700';
+        return 'bg-slate-100 text-[#3A4754]';
       default:
-        return 'bg-slate-100 text-slate-700';
+        return 'bg-slate-100 text-[#3A4754]';
     }
   };
 
@@ -48,7 +48,7 @@ export function Navbar({ user }: NavbarProps) {
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 w-full border-b border-slate-200/60 bg-white/90 backdrop-blur-lg">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -63,7 +63,7 @@ export function Navbar({ user }: NavbarProps) {
                   className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-slate-50 transition-colors"
                 >
                   {/* Avatar */}
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center text-white font-medium text-sm">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2FA4A9] to-[#1ECAD3] flex items-center justify-center text-white font-medium text-sm">
                     {user.profile.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="hidden sm:block text-left">
