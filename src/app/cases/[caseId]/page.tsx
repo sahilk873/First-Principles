@@ -177,7 +177,7 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
     .from('case_results')
     .select('*')
     .eq('case_id', caseId)
-    .single();
+    .maybeSingle();
   const caseResult = caseResultData as CaseResult | null;
 
   // Fetch reviews with reviewer info (for clinician to see assigned reviewers)

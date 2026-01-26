@@ -2,13 +2,13 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { AnatomyRegion, Case, CaseStatus, Profile } from '@/types/database';
+import { createEmptyClinicalData, type ClinicalData } from '@/types/clinical';
 
 // Helper type for partial profile
 type ProfileWithRoleAndOrg = Pick<Profile, 'id' | 'org_id' | 'role'>;
 
-// Types for case form data
+/** Legacy types for DB columns; also used when reading cases for detail/review. */
 export interface SymptomProfile {
   summary?: string;
   duration?: string;
@@ -39,27 +39,62 @@ export interface ConservativeCare {
   duration: string;
 }
 
+/** Form data for the 14-section clinical case submission. */
 export interface CaseFormData {
-  // Step 1 - Basic Info
-  patient_pseudo_id: string;
-  anatomy_region: AnatomyRegion;
-  symptom_summary: string;
-
-  // Step 2 - Clinical Details
-  symptom_profile: SymptomProfile;
-  neuro_deficits: NeuroDeficits;
-  prior_surgery: boolean;
-  prior_surgery_details: string;
-  comorbidities: Comorbidities;
-  conservative_care: ConservativeCare;
-
-  // Step 3 - Proposed Procedure
   diagnosis_codes: string[];
   proposed_procedure_codes: string[];
-  free_text_summary: string;
-
-  // Step 4 - Imaging
   imaging_paths: string[];
+  clinical_data: ClinicalData;
+}
+
+/** Derive legacy case columns from clinical_data for backward compatibility. */
+function mapClinicalDataToLegacy(c: ClinicalData) {
+  const s2 = c.section2;
+  const s3 = c.section3;
+  const s4 = c.section4;
+  const s2l = s2.comorbidities_list;
+
+  const legVals = ['leg_dominant', 'back_dominant', 'equal'] as const;
+  const leg =
+    s2.back_leg_proportionality && legVals.includes(s2.back_leg_proportionality as (typeof legVals)[number])
+      ? (s2.back_leg_proportionality as 'leg_dominant' | 'back_dominant' | 'equal')
+      : undefined;
+
+  return {
+    symptom_profile: {
+      summary: [s2.duration, s2.primary_symptom_complex, s2.back_symptoms.symptom_type, s2.leg_symptoms.symptom_type].filter(Boolean).join('; ') || undefined,
+      duration: s2.duration || undefined,
+      leg_vs_back: leg,
+      severity: s2.pain_intensity ? parseInt(s2.pain_intensity, 10) : undefined,
+    },
+    neuro_deficits: {
+      motor_weakness: !!s3.motor_grade,
+      sensory_loss: !!s3.sensory,
+      gait_instability: !!s3.gait,
+      bowel_bladder: !!s3.sphincter,
+    },
+    prior_surgery: s4.applicable,
+    prior_surgery_details: s4.applicable ? [s4.levels_and_procedure, s4.primary_reason_for_revision].filter(Boolean).join('; ') || null : null,
+    comorbidities: {
+      diabetes: s2.comorbidities_mode === 'following' && s2l.diabetes,
+      smoker: s2.comorbidities_mode === 'following' && s2l.smoker,
+      obesity: s2.comorbidities_mode === 'following' && s2l.obesity,
+      heart_disease: s2.comorbidities_mode === 'following' && s2l.heart_disease,
+      osteoporosis: s2.comorbidities_mode === 'following' && s2l.osteoporosis,
+      other: s2.comorbidities_mode === 'following' ? s2l.other : '',
+    },
+    conservative_care: {
+      pt_tried: s2.conservative_type_other,
+      meds: s2.conservative_type_medical,
+      injections: false,
+      duration: s2.conservative_duration || '',
+    },
+    free_text_summary: c.section12.justification || null,
+  };
+}
+
+function isClinicalDataEmpty(c: ClinicalData): boolean {
+  return JSON.stringify(c) === JSON.stringify(createEmptyClinicalData());
 }
 
 export async function submitCase(
@@ -95,31 +130,27 @@ export async function submitCase(
     return { success: false, error: 'Not authorized to create cases' };
   }
 
-  // Build symptom_profile JSON
-  const symptomProfile = {
-    summary: formData.symptom_summary,
-    duration: formData.symptom_profile.duration,
-    leg_vs_back: formData.symptom_profile.leg_vs_back,
-    severity: formData.symptom_profile.severity,
-  };
+  const s1 = formData.clinical_data.section1;
+  const legacy = mapClinicalDataToLegacy(formData.clinical_data);
 
   // Prepare case data
   const caseData = {
     org_id: profile.org_id,
     submitter_id: profile.id,
     status: (isDraft ? 'DRAFT' : 'SUBMITTED') as CaseStatus,
-    patient_pseudo_id: formData.patient_pseudo_id,
-    anatomy_region: formData.anatomy_region,
+    patient_pseudo_id: s1.case_number || 'TBD',
+    anatomy_region: s1.anatomy_region as AnatomyRegion,
     diagnosis_codes: formData.diagnosis_codes,
     proposed_procedure_codes: formData.proposed_procedure_codes,
-    symptom_profile: symptomProfile,
-    neuro_deficits: formData.neuro_deficits,
-    prior_surgery: formData.prior_surgery,
-    prior_surgery_details: formData.prior_surgery ? formData.prior_surgery_details : null,
-    comorbidities: formData.comorbidities,
-    conservative_care: formData.conservative_care,
-    free_text_summary: formData.free_text_summary,
+    symptom_profile: legacy.symptom_profile,
+    neuro_deficits: legacy.neuro_deficits,
+    prior_surgery: legacy.prior_surgery,
+    prior_surgery_details: legacy.prior_surgery_details,
+    comorbidities: legacy.comorbidities,
+    conservative_care: legacy.conservative_care,
+    free_text_summary: legacy.free_text_summary,
     imaging_paths: formData.imaging_paths,
+    clinical_data: formData.clinical_data,
     submitted_at: isDraft ? null : new Date().toISOString(),
   };
 
@@ -186,11 +217,16 @@ export async function updateCase(
   // Check that the case exists and belongs to this user
   const { data: existingCaseData, error: caseError } = await supabase
     .from('cases')
-    .select('id, submitter_id, status')
+    .select('id, submitter_id, status, clinical_data')
     .eq('id', caseId)
     .single();
 
-  const existingCase = existingCaseData as { id: string; submitter_id: string; status: CaseStatus } | null;
+  const existingCase = existingCaseData as {
+    id: string;
+    submitter_id: string;
+    status: CaseStatus;
+    clinical_data: ClinicalData | null;
+  } | null;
 
   if (caseError || !existingCase) {
     return { success: false, error: 'Case not found' };
@@ -204,31 +240,30 @@ export async function updateCase(
     return { success: false, error: 'Can only update draft cases' };
   }
 
-  // Build symptom_profile JSON
-  const symptomProfile = {
-    summary: formData.symptom_summary,
-    duration: formData.symptom_profile.duration,
-    leg_vs_back: formData.symptom_profile.leg_vs_back,
-    severity: formData.symptom_profile.severity,
-  };
+  const s1 = formData.clinical_data.section1;
+  const legacy = mapClinicalDataToLegacy(formData.clinical_data);
+  const shouldUpdateLegacy = !!existingCase?.clinical_data || !isClinicalDataEmpty(formData.clinical_data);
 
   // Prepare update data
-  const updateData = {
+  const updateData: Record<string, unknown> = {
     status: (isDraft ? 'DRAFT' : 'SUBMITTED') as CaseStatus,
-    patient_pseudo_id: formData.patient_pseudo_id,
-    anatomy_region: formData.anatomy_region,
     diagnosis_codes: formData.diagnosis_codes,
     proposed_procedure_codes: formData.proposed_procedure_codes,
-    symptom_profile: symptomProfile,
-    neuro_deficits: formData.neuro_deficits,
-    prior_surgery: formData.prior_surgery,
-    prior_surgery_details: formData.prior_surgery ? formData.prior_surgery_details : null,
-    comorbidities: formData.comorbidities,
-    conservative_care: formData.conservative_care,
-    free_text_summary: formData.free_text_summary,
     imaging_paths: formData.imaging_paths,
+    clinical_data: formData.clinical_data,
     submitted_at: isDraft ? null : new Date().toISOString(),
   };
+  if (shouldUpdateLegacy) {
+    updateData.patient_pseudo_id = s1.case_number || 'TBD';
+    updateData.anatomy_region = s1.anatomy_region as AnatomyRegion;
+    updateData.symptom_profile = legacy.symptom_profile;
+    updateData.neuro_deficits = legacy.neuro_deficits;
+    updateData.prior_surgery = legacy.prior_surgery;
+    updateData.prior_surgery_details = legacy.prior_surgery_details;
+    updateData.comorbidities = legacy.comorbidities;
+    updateData.conservative_care = legacy.conservative_care;
+    updateData.free_text_summary = legacy.free_text_summary;
+  }
 
   // Update the case
   const { error: updateError } = await supabase
@@ -374,4 +409,3 @@ export async function assignReviewersToCase(
 
   return { success: true };
 }
-

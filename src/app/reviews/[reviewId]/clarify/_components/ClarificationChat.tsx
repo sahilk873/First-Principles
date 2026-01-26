@@ -16,12 +16,16 @@ import {
 interface ReviewData {
   id: string;
   appropriateness_score: number | null;
-  surgery_indicated: boolean | null;
-  fusion_indicated: boolean | null;
-  preferred_approach: string | null;
-  comments: string | null;
-  missing_data_flag: boolean | null;
-  optimization_recommended: boolean | null;
+  agree_overall_plan_acceptable: boolean | null;
+  agree_need_any_surgery_now: boolean | null;
+  agree_fusion_plan_acceptable: boolean | null;
+  agree_need_any_fusion_now: boolean | null;
+  would_personally_prescribe: boolean | null;
+  preferred_procedure_text: string | null;
+  proposed_nonsurgical_therapies_text: string | null;
+  suggested_decompression_text: string | null;
+  suggested_fusion_text: string | null;
+  final_comments: string | null;
 }
 
 interface ClarificationChatProps {
@@ -148,6 +152,17 @@ export function ClarificationChat({
   const allQuestionsAnswered = currentQuestionIndex >= systemQuestions.length;
   const progressPercent = systemQuestions.length > 0 ? (currentQuestionIndex / systemQuestions.length) * 100 : 100;
   const answeredPairsCount = Math.min(currentQuestionIndex, reviewerAnswerMessages.length);
+  const surgeryNeededNow = review.agree_overall_plan_acceptable === true
+    ? true
+    : review.agree_overall_plan_acceptable === false
+      ? review.agree_need_any_surgery_now
+      : null;
+  const fusionNeededNow = review.agree_fusion_plan_acceptable === true
+    ? true
+    : review.agree_fusion_plan_acceptable === false
+      ? review.agree_need_any_fusion_now
+      : null;
+  const showFusionSummary = review.agree_fusion_plan_acceptable != null || review.agree_need_any_fusion_now != null;
 
   const createQuestionMessage = (text: string, index: number): ClarificationMessage => ({
     id: `generated-${index}`,
@@ -255,32 +270,73 @@ export function ClarificationChat({
             </p>
           </div>
           <div className="p-3 bg-slate-50 rounded-lg text-center">
-            <p className="text-xs text-slate-500 mb-1">Surgery</p>
+            <p className="text-xs text-slate-500 mb-1">Overall Plan</p>
             <p className={clsx(
               'text-lg font-semibold',
-              review.surgery_indicated ? 'text-emerald-600' : 'text-rose-600'
+              review.agree_overall_plan_acceptable ? 'text-emerald-600' : 'text-rose-600'
             )}>
-              {review.surgery_indicated ? 'Indicated' : 'Not Indicated'}
+              {review.agree_overall_plan_acceptable ? 'Acceptable' : 'Unacceptable'}
             </p>
           </div>
           <div className="p-3 bg-slate-50 rounded-lg text-center">
-            <p className="text-xs text-slate-500 mb-1">Approach</p>
-            <p className="text-sm font-medium text-slate-700">{review.preferred_approach || '—'}</p>
-          </div>
-          <div className="p-3 bg-slate-50 rounded-lg text-center">
-            <p className="text-xs text-slate-500 mb-1">Optimization</p>
+            <p className="text-xs text-slate-500 mb-1">Surgery Now</p>
             <p className={clsx(
               'text-lg font-semibold',
-              review.optimization_recommended ? 'text-amber-600' : 'text-slate-600'
+              surgeryNeededNow ? 'text-emerald-600' : 'text-rose-600'
             )}>
-              {review.optimization_recommended ? 'Recommended' : 'Not Needed'}
+              {surgeryNeededNow == null ? '—' : surgeryNeededNow ? 'Yes' : 'No'}
             </p>
           </div>
+          {showFusionSummary ? (
+            <div className="p-3 bg-slate-50 rounded-lg text-center">
+              <p className="text-xs text-slate-500 mb-1">Fusion Now</p>
+              <p className={clsx(
+                'text-lg font-semibold',
+                fusionNeededNow ? 'text-emerald-600' : 'text-rose-600'
+              )}>
+                {fusionNeededNow == null ? '—' : fusionNeededNow ? 'Yes' : 'No'}
+              </p>
+            </div>
+          ) : (
+            <div className="p-3 bg-slate-50 rounded-lg text-center">
+              <p className="text-xs text-slate-500 mb-1">Would Prescribe</p>
+              <p className={clsx(
+                'text-lg font-semibold',
+                review.would_personally_prescribe ? 'text-emerald-600' : 'text-rose-600'
+              )}>
+                {review.would_personally_prescribe == null ? '—' : review.would_personally_prescribe ? 'Yes' : 'No'}
+              </p>
+            </div>
+          )}
         </div>
-        {review.comments && (
+        {review.preferred_procedure_text && (
+          <div className="mt-4 p-4 bg-slate-50 rounded-lg">
+            <p className="text-xs text-slate-500 font-medium mb-1">Preferred Procedure</p>
+            <p className="text-sm text-slate-700">{review.preferred_procedure_text}</p>
+          </div>
+        )}
+        {review.proposed_nonsurgical_therapies_text && (
+          <div className="mt-4 p-4 bg-amber-50 rounded-lg">
+            <p className="text-xs text-amber-700 font-medium mb-1">Proposed Nonsurgical Therapies</p>
+            <p className="text-sm text-amber-800">{review.proposed_nonsurgical_therapies_text}</p>
+          </div>
+        )}
+        {review.suggested_decompression_text && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <p className="text-xs text-blue-600 font-medium mb-1">Your Comments</p>
-            <p className="text-sm text-blue-800">{review.comments}</p>
+            <p className="text-xs text-blue-600 font-medium mb-1">Suggested Decompression</p>
+            <p className="text-sm text-blue-800">{review.suggested_decompression_text}</p>
+          </div>
+        )}
+        {review.suggested_fusion_text && (
+          <div className="mt-4 p-4 bg-purple-50 rounded-lg">
+            <p className="text-xs text-purple-700 font-medium mb-1">Suggested Fusion</p>
+            <p className="text-sm text-purple-800">{review.suggested_fusion_text}</p>
+          </div>
+        )}
+        {review.final_comments && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <p className="text-xs text-blue-600 font-medium mb-1">Final Comments</p>
+            <p className="text-sm text-blue-800">{review.final_comments}</p>
           </div>
         )}
       </Card>

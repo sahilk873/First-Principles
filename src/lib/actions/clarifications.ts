@@ -21,14 +21,21 @@ export interface ClarificationFormData {
 // Review data type for clarification generation
 interface ReviewForClarification {
   appropriateness_score: number | null;
-  surgery_indicated: boolean | null;
-  fusion_indicated: boolean | null;
-  preferred_approach: string | null;
-  comments: string | null;
-  missing_data_flag: boolean | null;
-  missing_data_description: string | null;
-  optimization_recommended: boolean | null;
-  successful_outcome_likely: boolean | null;
+  agree_justification: boolean | null;
+  justification_comment: string | null;
+  agree_overall_plan_acceptable: boolean | null;
+  would_personally_prescribe: boolean | null;
+  preferred_procedure_text: string | null;
+  agree_need_any_surgery_now: boolean | null;
+  benefit_from_more_nonsurgical_first: boolean | null;
+  proposed_nonsurgical_therapies_text: string | null;
+  agree_decompression_plan_acceptable: boolean | null;
+  agree_need_any_decompression_now: boolean | null;
+  suggested_decompression_text: string | null;
+  agree_fusion_plan_acceptable: boolean | null;
+  agree_need_any_fusion_now: boolean | null;
+  suggested_fusion_text: string | null;
+  final_comments: string | null;
 }
 
 // Generate initial clarification questions based on the review
@@ -42,14 +49,21 @@ export async function generateClarificationQuestions(
     .from('reviews')
     .select(`
       appropriateness_score,
-      surgery_indicated,
-      fusion_indicated,
-      preferred_approach,
-      comments,
-      missing_data_flag,
-      missing_data_description,
-      optimization_recommended,
-      successful_outcome_likely
+      agree_justification,
+      justification_comment,
+      agree_overall_plan_acceptable,
+      would_personally_prescribe,
+      preferred_procedure_text,
+      agree_need_any_surgery_now,
+      benefit_from_more_nonsurgical_first,
+      proposed_nonsurgical_therapies_text,
+      agree_decompression_plan_acceptable,
+      agree_need_any_decompression_now,
+      suggested_decompression_text,
+      agree_fusion_plan_acceptable,
+      agree_need_any_fusion_now,
+      suggested_fusion_text,
+      final_comments
     `)
     .eq('id', reviewId)
     .single();
@@ -78,47 +92,55 @@ export async function generateClarificationQuestions(
   if (
     typeof review.appropriateness_score === 'number' &&
     review.appropriateness_score >= 7 &&
-    review.surgery_indicated === false
+    review.agree_overall_plan_acceptable === false
   ) {
     addQuestion(
-      `You provided a high appropriateness score (${review.appropriateness_score}/9) but marked surgery as not indicated. Can you walk through that nuance?`
+      `You provided a high appropriateness score (${review.appropriateness_score}/9) but marked the overall plan as unacceptable. Can you walk through that nuance?`
     );
   }
 
-  if (review.missing_data_flag) {
+  if (review.agree_justification === false && review.justification_comment) {
     addQuestion(
-      review.missing_data_description
-        ? `You flagged missing data (${review.missing_data_description}). How much does that gap limit your confidence in the current plan?`
-        : 'You flagged missing data for this case. How significantly does the missing information impact your confidence in the assessment?'
+      `You disagreed with the clinical justification and noted: "${review.justification_comment}". What additional context would help the submitting physician act on this feedback?`
     );
   }
 
-  if (review.optimization_recommended) {
+  if (review.agree_overall_plan_acceptable === false) {
+    if (review.agree_need_any_surgery_now === true) {
+      addQuestion(
+        'You indicated the overall plan is unacceptable but that surgery is still needed now. What changes would make the surgical plan acceptable?'
+      );
+    } else if (review.benefit_from_more_nonsurgical_first === true) {
+      addQuestion(
+        review.proposed_nonsurgical_therapies_text
+          ? `You suggested more nonsurgical care first (${review.proposed_nonsurgical_therapies_text}). What outcome would convince you surgery is warranted?`
+          : 'You suggested more nonsurgical care first. What outcome would convince you surgery is warranted?'
+      );
+    }
+  } else if (review.would_personally_prescribe === false && review.preferred_procedure_text) {
     addQuestion(
-      'You recommended patient optimization before proceeding. What specific optimization measures would you suggest to the treating team?'
+      `You would not personally prescribe the proposed plan and noted: "${review.preferred_procedure_text}". What makes this approach preferable in this case?`
     );
   }
 
-  if (review.surgery_indicated && review.fusion_indicated === false) {
+  if (review.agree_decompression_plan_acceptable === false && review.agree_need_any_decompression_now === true) {
     addQuestion(
-      'You felt surgery is indicated but fusion is not. Could you highlight the clinical reasoning or alternative strategies you would consider?'
+      review.suggested_decompression_text
+        ? `You suggested an alternative decompression (${review.suggested_decompression_text}). What clinical factors drove that recommendation?`
+        : 'You indicated decompression is still needed now but the plan is unacceptable. What clinical factors drive your recommendation?'
     );
   }
 
-  if (!review.successful_outcome_likely && review.surgery_indicated) {
+  if (review.agree_fusion_plan_acceptable === false && review.agree_need_any_fusion_now === true) {
     addQuestion(
-      'You indicated surgery is appropriate but a successful outcome may not be likely. What factors contribute to this concern?'
+      review.suggested_fusion_text
+        ? `You suggested an alternative fusion plan (${review.suggested_fusion_text}). What makes that approach a better fit?`
+        : 'You indicated fusion is still needed now but the plan is unacceptable. What changes would you recommend?'
     );
   }
 
-  if (review.preferred_approach) {
-    addQuestion(
-      `You selected ${review.preferred_approach.replace(/_/g, ' ').toLowerCase()} as your preferred approach. What makes this strategy most compelling in this case?`
-    );
-  }
-
-  if (review.comments) {
-    const excerpt = review.comments.length > 180 ? `${review.comments.slice(0, 177)}...` : review.comments;
+  if (review.final_comments) {
+    const excerpt = review.final_comments.length > 180 ? `${review.final_comments.slice(0, 177)}...` : review.final_comments;
     addQuestion(
       `In your review you noted: "${excerpt}". Is there additional context you can provide to help the submitting physician act on that feedback?`
     );

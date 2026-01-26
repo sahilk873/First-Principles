@@ -25,6 +25,8 @@ export function getStatusBadgeVariant(status: string): StatusBadgeVariant {
       return 'warning';
     case 'EXPIRED':
       return 'error';
+    case 'STOPPED_INSUFFICIENT_DATA':
+      return 'warning';
     default:
       return 'default';
   }

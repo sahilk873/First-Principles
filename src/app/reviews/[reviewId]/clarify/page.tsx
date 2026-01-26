@@ -61,7 +61,7 @@ export default async function ClarifyPage({ params }: ClarifyPageProps) {
       case:cases!case_id(id, submitter_id, org_id)
     `)
     .eq('id', reviewId)
-    .single();
+    .maybeSingle();
 
   if (reviewError || !reviewData) {
     return (
@@ -154,12 +154,16 @@ export default async function ClarifyPage({ params }: ClarifyPageProps) {
           review={{
             id: review.id,
             appropriateness_score: review.appropriateness_score,
-            surgery_indicated: review.surgery_indicated,
-            fusion_indicated: review.fusion_indicated,
-            preferred_approach: review.preferred_approach,
-            comments: review.comments,
-            missing_data_flag: review.missing_data_flag,
-            optimization_recommended: review.optimization_recommended,
+            agree_overall_plan_acceptable: review.agree_overall_plan_acceptable,
+            agree_need_any_surgery_now: review.agree_need_any_surgery_now,
+            agree_fusion_plan_acceptable: review.agree_fusion_plan_acceptable,
+            agree_need_any_fusion_now: review.agree_need_any_fusion_now,
+            would_personally_prescribe: review.would_personally_prescribe,
+            preferred_procedure_text: review.preferred_procedure_text,
+            proposed_nonsurgical_therapies_text: review.proposed_nonsurgical_therapies_text,
+            suggested_decompression_text: review.suggested_decompression_text,
+            suggested_fusion_text: review.suggested_fusion_text,
+            final_comments: review.final_comments,
           }}
           userRole={isReviewer ? 'REVIEWER' : 'CLINICIAN'}
         />

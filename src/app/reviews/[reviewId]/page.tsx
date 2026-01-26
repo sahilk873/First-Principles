@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { ReviewWorkspace } from './_components/ReviewWorkspace';
 import { SymptomProfile, NeuroDeficits, Comorbidities, ConservativeCare } from '@/lib/actions/cases';
+import { getCaseHasDecompressionPlusFusion, getCaseHasFusion } from '@/lib/utils/review';
 
 interface ReviewDetailPageProps {
   params: Promise<{ reviewId: string }>;
@@ -50,7 +51,7 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
     redirect('/login');
   }
 
-  // Fetch the review with related case
+  // Fetch the review with related case (include clinical_data for Phase 1 decomp/fusion flags)
   const { data: reviewData, error: reviewError } = await supabase
     .from('reviews')
     .select(`
@@ -69,11 +70,12 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         proposed_procedure_codes, 
         free_text_summary, 
         imaging_paths,
-        org_id
+        org_id,
+        clinical_data
       )
     `)
     .eq('id', reviewId)
-    .single();
+    .maybeSingle();
 
   if (reviewError || !reviewData) {
     return (
@@ -104,7 +106,19 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
   const isSysAdmin = profile.role === 'SYS_ADMIN';
 
   const canView = isReviewer || isOrgAdmin || isSysAdmin;
-  const canEdit = isReviewer && profile.role === 'EXPERT_REVIEWER' && review.status !== 'SUBMITTED';
+  const canEdit =
+    isReviewer &&
+    profile.role === 'EXPERT_REVIEWER' &&
+    review.status !== 'SUBMITTED' &&
+    review.status !== 'STOPPED_INSUFFICIENT_DATA';
+
+  // Phase 1: derive case flags for decompression+fusion and fusion-only branches
+  const caseForFlags = {
+    clinical_data: (review.case as { clinical_data?: unknown } | null)?.clinical_data,
+    proposed_procedure_codes: (review.case as { proposed_procedure_codes?: string[] } | null)?.proposed_procedure_codes,
+  };
+  const caseHasDecompressionPlusFusion = getCaseHasDecompressionPlusFusion(caseForFlags);
+  const caseHasFusion = getCaseHasFusion(caseForFlags);
 
   if (!canView) {
     return (
@@ -156,6 +170,8 @@ export default async function ReviewDetailPage({ params }: ReviewDetailPageProps
         }}
         canEdit={canEdit}
         profile={profile}
+        caseHasDecompressionPlusFusion={caseHasDecompressionPlusFusion}
+        caseHasFusion={caseHasFusion}
       />
     </AppLayout>
   );

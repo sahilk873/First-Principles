@@ -1,19 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Review, Profile, PreferredApproach } from '@/types/database';
+import { Review, Profile } from '@/types/database';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { getStatusBadgeVariant, formatStatus } from '@/lib/utils/status';
 import { Slider } from '@/components/ui/Slider';
 import { DictationTextarea } from '@/components/ui/DictationTextarea';
+import { Input } from '@/components/ui/Input';
 import { clsx } from 'clsx';
-import { saveReviewDraft, submitReview, ReviewFormData } from '@/lib/actions/reviews';
+import {
+  saveReviewDraft,
+  submitReview,
+  submitStoppedInsufficientData,
+  startReview,
+  type ReviewFormData,
+} from '@/lib/actions/reviews';
 import { SymptomProfile, NeuroDeficits, Comorbidities, ConservativeCare } from '@/lib/actions/cases';
 import { ImagingViewer } from '@/app/cases/[caseId]/_components/ImagingViewer';
+import { RATIONALE_FACTOR_OPTIONS } from '@/lib/utils/review';
 
 interface CaseData {
   id: string;
@@ -36,103 +44,166 @@ interface ReviewWorkspaceProps {
   caseData: CaseData;
   canEdit: boolean;
   profile: Profile;
+  caseHasDecompressionPlusFusion: boolean;
+  caseHasFusion: boolean;
 }
 
-const PREFERRED_APPROACH_OPTIONS: { value: PreferredApproach; label: string; description: string }[] = [
-  { value: 'DECOMPRESSION_ONLY', label: 'Decompression Only', description: 'Laminectomy, microdiscectomy, etc.' },
-  { value: 'PLF', label: 'PLF', description: 'Posterolateral Fusion' },
-  { value: 'TLIF', label: 'TLIF', description: 'Transforaminal Lumbar Interbody Fusion' },
-  { value: 'ALIF', label: 'ALIF', description: 'Anterior Lumbar Interbody Fusion' },
-  { value: 'OTHER', label: 'Other', description: 'Alternative approach' },
-];
+function reviewToFormData(r: Review): ReviewFormData {
+  return {
+    sufficient_info: r.sufficient_info ?? null,
+    info_deficiencies: r.info_deficiencies ?? null,
+    more_than_necessary: r.more_than_necessary ?? null,
+    info_burden_items: r.info_burden_items ?? null,
+    agree_justification: r.agree_justification ?? null,
+    justification_comment: r.justification_comment ?? null,
+    agree_overall_plan_acceptable: r.agree_overall_plan_acceptable ?? null,
+    would_personally_prescribe: r.would_personally_prescribe ?? null,
+    preferred_procedure_text: r.preferred_procedure_text ?? null,
+    agree_need_any_surgery_now: r.agree_need_any_surgery_now ?? null,
+    benefit_from_more_nonsurgical_first: r.benefit_from_more_nonsurgical_first ?? null,
+    proposed_nonsurgical_therapies_text: r.proposed_nonsurgical_therapies_text ?? null,
+    agree_decompression_plan_acceptable: r.agree_decompression_plan_acceptable ?? null,
+    agree_need_any_decompression_now: r.agree_need_any_decompression_now ?? null,
+    suggested_decompression_text: r.suggested_decompression_text ?? null,
+    agree_fusion_plan_acceptable: r.agree_fusion_plan_acceptable ?? null,
+    agree_need_any_fusion_now: r.agree_need_any_fusion_now ?? null,
+    suggested_fusion_text: r.suggested_fusion_text ?? null,
+    appropriateness_score: r.appropriateness_score ?? null,
+    necessity_score: r.necessity_score ?? null,
+    rationale_factors: r.rationale_factors ?? null,
+    rationale_other_text: r.rationale_other_text ?? null,
+    final_comments: r.final_comments ?? null,
+  };
+}
 
-export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWorkspaceProps) {
+function YesNo({
+  value,
+  onChange,
+  disabled,
+  label,
+  required,
+}: {
+  value: boolean | null;
+  onChange: (v: boolean) => void;
+  disabled: boolean;
+  label: string;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">
+        {label} {required && <span className="text-rose-500">*</span>}
+      </label>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => !disabled && onChange(true)}
+          disabled={disabled}
+          className={clsx(
+            'flex-1 py-2 rounded-lg font-medium text-sm transition-colors border-2',
+            value === true ? 'bg-green-100 text-green-700 border-green-300' : 'bg-slate-100 text-slate-600 border-transparent'
+          )}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          onClick={() => !disabled && onChange(false)}
+          disabled={disabled}
+          className={clsx(
+            'flex-1 py-2 rounded-lg font-medium text-sm transition-colors border-2',
+            value === false ? 'bg-red-100 text-red-700 border-red-300' : 'bg-slate-100 text-slate-600 border-transparent'
+          )}
+        >
+          No
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function ReviewWorkspace({
+  review,
+  caseData,
+  canEdit,
+  profile,
+  caseHasDecompressionPlusFusion,
+  caseHasFusion,
+}: ReviewWorkspaceProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState<ReviewFormData>(() => reviewToFormData(review));
 
-  // Form state
-  const [formData, setFormData] = useState<ReviewFormData>({
-    surgery_indicated: review.surgery_indicated ?? false,
-    fusion_indicated: review.fusion_indicated ?? false,
-    preferred_approach: review.preferred_approach || 'DECOMPRESSION_ONLY',
-    appropriateness_score: review.appropriateness_score || 5,
-    successful_outcome_likely: review.successful_outcome_likely ?? false,
-    optimization_recommended: review.optimization_recommended ?? false,
-    missing_data_flag: review.missing_data_flag ?? false,
-    missing_data_description: review.missing_data_description || '',
-    comments: review.comments || '',
-  });
+  // On open: if ASSIGNED and canEdit, start review (IN_PROGRESS)
+  useEffect(() => {
+    if (canEdit && review.status === 'ASSIGNED') {
+      startReview(review.id);
+    }
+  }, [canEdit, review.id, review.status]);
 
-  const updateFormData = <K extends keyof ReviewFormData>(field: K, value: ReviewFormData[K]) => {
+  const update = <K extends keyof ReviewFormData>(field: K, value: ReviewFormData[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
+    if (errors[field]) setErrors((e) => { const n = { ...e }; delete n[field]; return n; });
+    // If appropriateness < 7, clear necessity
+    if (field === 'appropriateness_score' && (value as number) < 7) {
+      setFormData((p) => ({ ...p, necessity_score: null }));
     }
   };
+
+  const stopped = formData.sufficient_info === false;
+  const showSteps2To5 = !stopped && formData.sufficient_info === true;
 
   const handleSaveDraft = async () => {
     setIsSaving(true);
     setErrors({});
-
-    try {
-      const result = await saveReviewDraft(review.id, formData);
-      if (!result.success) {
-        setErrors({ submit: result.error || 'Failed to save draft' });
-      }
-    } catch (err) {
-      setErrors({ submit: 'An unexpected error occurred' });
-    } finally {
-      setIsSaving(false);
-    }
+    const result = await saveReviewDraft(review.id, formData);
+    if (!result.success) setErrors({ submit: result.error ?? 'Failed to save draft' });
+    setIsSaving(false);
   };
 
-  const handleSubmit = async () => {
-    // Validate
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.appropriateness_score || formData.appropriateness_score < 1 || formData.appropriateness_score > 9) {
-      newErrors.appropriateness_score = 'Score must be between 1 and 9';
-    }
-    if (!formData.preferred_approach) {
-      newErrors.preferred_approach = 'Please select a preferred approach';
-    }
-    if (formData.missing_data_flag && !formData.missing_data_description.trim()) {
-      newErrors.missing_data_description = 'Please describe the missing data';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+  const handleSubmitStopped = async () => {
+    if (formData.sufficient_info !== false || !formData.info_deficiencies?.trim()) {
+      setErrors({ info_deficiencies: 'Please describe the information deficiencies.' });
       return;
     }
-
     setIsSubmitting(true);
     setErrors({});
-
-    try {
-      const result = await submitReview(review.id, formData);
-      if (result.success) {
-        // Redirect to clarification chatbot page after submission
-        router.push(`/reviews/${review.id}/clarify`);
-        router.refresh();
-      } else {
-        setErrors({ submit: result.error || 'Failed to submit review' });
-      }
-    } catch (err) {
-      setErrors({ submit: 'An unexpected error occurred' });
-    } finally {
-      setIsSubmitting(false);
+    const result = await submitStoppedInsufficientData(review.id, {
+      sufficient_info: false,
+      info_deficiencies: formData.info_deficiencies.trim(),
+    });
+    if (result.success) {
+      router.push('/reviews');
+      router.refresh();
+    } else {
+      setErrors({ submit: result.error ?? 'Failed to submit' });
     }
+    setIsSubmitting(false);
   };
+
+  const handleSubmitFull = async () => {
+    setIsSubmitting(true);
+    setErrors({});
+    const result = await submitReview(review.id, formData, {
+      caseHasDecompressionPlusFusion,
+      caseHasFusion,
+    });
+    if (result.success) {
+      router.push(`/reviews/${review.id}/clarify`);
+      router.refresh();
+    } else {
+      setErrors({ submit: result.error ?? 'Failed to submit review' });
+    }
+    setIsSubmitting(false);
+  };
+
+  const isStoppedStatus = review.status === 'STOPPED_INSUFFICIENT_DATA';
+  const isSubmitted = review.status === 'SUBMITTED';
 
   return (
     <div>
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Link href="/reviews" className="text-slate-500 hover:text-slate-700 transition-colors">
@@ -150,9 +221,8 @@ export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWo
         </Badge>
       </div>
 
-      {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Case Summary */}
+        {/* Left: Case Summary (unchanged) */}
         <div className="space-y-6">
           <Card>
             <CardHeader>Case Overview</CardHeader>
@@ -167,7 +237,7 @@ export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWo
                   <p className="font-medium">{caseData.anatomy_region}</p>
                 </div>
               </div>
-              {caseData.symptom_profile.summary && (
+              {caseData.symptom_profile?.summary && (
                 <div>
                   <p className="text-sm text-slate-500">Symptom Summary</p>
                   <p className="font-medium text-slate-700">{caseData.symptom_profile.summary}</p>
@@ -178,129 +248,77 @@ export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWo
 
           <Card>
             <CardHeader>Clinical Details</CardHeader>
-            
-            {/* Symptom Profile */}
             <div className="space-y-4 mb-6">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Symptom Profile</h4>
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <div className="p-3 bg-slate-50 rounded-lg">
                   <p className="text-slate-500 text-xs">Duration</p>
-                  <p className="font-medium">{caseData.symptom_profile.duration || '—'}</p>
+                  <p className="font-medium">{caseData.symptom_profile?.duration || '—'}</p>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-lg">
                   <p className="text-slate-500 text-xs">Pain Pattern</p>
-                  <p className="font-medium">{formatLegVsBack(caseData.symptom_profile.leg_vs_back)}</p>
+                  <p className="font-medium">{formatLegVsBack(caseData.symptom_profile?.leg_vs_back)}</p>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-lg">
                   <p className="text-slate-500 text-xs">Severity</p>
-                  <p className="font-medium">{caseData.symptom_profile.severity ? `${caseData.symptom_profile.severity}/10` : '—'}</p>
+                  <p className="font-medium">{caseData.symptom_profile?.severity != null ? `${caseData.symptom_profile.severity}/10` : '—'}</p>
                 </div>
               </div>
             </div>
-
-            {/* Neuro Deficits */}
             <div className="mb-6">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Neurological Deficits</h4>
               <div className="flex flex-wrap gap-2">
-                {Object.entries(caseData.neuro_deficits).filter(([, v]) => v).length > 0 ? (
-                  Object.entries(caseData.neuro_deficits).filter(([, v]) => v).map(([key]) => (
-                    <span key={key} className="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">
-                      {formatNeuroDeficit(key)}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-slate-400 text-sm">None reported</span>
-                )}
+                {formatNeuroDeficits(caseData.neuro_deficits)}
               </div>
             </div>
-
-            {/* Prior Surgery */}
             <div className="mb-6">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Prior Surgery</h4>
               {caseData.prior_surgery ? (
                 <div>
                   <Badge variant="warning">Yes</Badge>
-                  {caseData.prior_surgery_details && (
-                    <p className="mt-2 text-sm text-slate-600">{caseData.prior_surgery_details}</p>
-                  )}
+                  {caseData.prior_surgery_details && <p className="mt-2 text-sm text-slate-600">{caseData.prior_surgery_details}</p>}
                 </div>
               ) : (
                 <span className="text-slate-400 text-sm">None</span>
               )}
             </div>
-
-            {/* Comorbidities */}
             <div className="mb-6">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Comorbidities</h4>
-              <div className="flex flex-wrap gap-2">
-                {formatComorbidities(caseData.comorbidities).length > 0 ? (
-                  formatComorbidities(caseData.comorbidities).map((item, i) => (
-                    <span key={i} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-medium">
-                      {item}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-slate-400 text-sm">None reported</span>
-                )}
-              </div>
+              <div className="flex flex-wrap gap-2">{formatComorbidities(caseData.comorbidities)}</div>
             </div>
-
-            {/* Conservative Care */}
             <div>
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Conservative Care</h4>
-              <div className="flex flex-wrap gap-2">
-                {formatConservativeCare(caseData.conservative_care).length > 0 ? (
-                  formatConservativeCare(caseData.conservative_care).map((item, i) => (
-                    <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                      {item}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-slate-400 text-sm">None reported</span>
-                )}
-              </div>
-              {caseData.conservative_care.duration && (
-                <p className="mt-2 text-sm text-slate-500">Duration: {caseData.conservative_care.duration}</p>
-              )}
+              <div className="flex flex-wrap gap-2">{formatConservativeCare(caseData.conservative_care)}</div>
+              {caseData.conservative_care?.duration && <p className="mt-2 text-sm text-slate-500">Duration: {caseData.conservative_care.duration}</p>}
             </div>
           </Card>
 
           <Card>
             <CardHeader>Proposed Procedure</CardHeader>
-            
-            {/* Diagnosis Codes */}
             <div className="mb-4">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Diagnosis Codes</h4>
               <div className="flex flex-wrap gap-2">
-                {caseData.diagnosis_codes.length > 0 ? (
-                  caseData.diagnosis_codes.map((code, i) => (
-                    <span key={i} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-mono">
-                      {code}
-                    </span>
+                {(caseData.diagnosis_codes || []).length ? (
+                  caseData.diagnosis_codes!.map((c, i) => (
+                    <span key={i} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-mono">{c}</span>
                   ))
                 ) : (
                   <span className="text-slate-400 text-sm">None</span>
                 )}
               </div>
             </div>
-
-            {/* Procedure Codes */}
             <div className="mb-4">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Procedure Codes</h4>
               <div className="flex flex-wrap gap-2">
-                {caseData.proposed_procedure_codes.length > 0 ? (
-                  caseData.proposed_procedure_codes.map((code, i) => (
-                    <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-mono">
-                      {code}
-                    </span>
+                {(caseData.proposed_procedure_codes || []).length ? (
+                  caseData.proposed_procedure_codes!.map((c, i) => (
+                    <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-mono">{c}</span>
                   ))
                 ) : (
                   <span className="text-slate-400 text-sm">None</span>
                 )}
               </div>
             </div>
-
-            {/* Clinical Rationale */}
             {caseData.free_text_summary && (
               <div>
                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Clinical Rationale</h4>
@@ -309,332 +327,391 @@ export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWo
             )}
           </Card>
 
-          {/* Imaging */}
           <Card>
             <CardHeader>Imaging</CardHeader>
-            {caseData.imaging_paths.length > 0 ? (
-              <ImagingViewer imagingPaths={caseData.imaging_paths} />
+            {(caseData.imaging_paths?.length ?? 0) > 0 ? (
+              <ImagingViewer imagingPaths={caseData.imaging_paths!} />
             ) : (
               <div className="text-center py-8 text-slate-500">
-                <svg className="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
                 <p className="text-sm">No imaging files uploaded</p>
               </div>
             )}
           </Card>
         </div>
 
-        {/* Right Column - Review Form */}
+        {/* Right: Phase 1 – 5-step form */}
         <div className="space-y-6">
           <Card>
             <CardHeader>Your Assessment</CardHeader>
-            
-            {/* Read-only message for submitted reviews */}
-            {!canEdit && (
+
+            {(isSubmitted || isStoppedStatus) && !canEdit && (
               <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
                 <p className="text-sm text-slate-600">
-                  {review.status === 'SUBMITTED' 
-                    ? 'This review has been submitted and cannot be modified.'
-                    : 'You are viewing this review in read-only mode.'}
+                  {isStoppedStatus
+                    ? 'This review was stopped due to insufficient data. The form below shows the submitted answers.'
+                    : 'This review has been submitted and cannot be modified.'}
                 </p>
               </div>
             )}
 
-            {/* Appropriateness Score - Enhanced Slider */}
-            <div className="mb-8">
-              <Slider
-                label="Appropriateness Score"
-                min={1}
-                max={9}
-                step={1}
-                value={formData.appropriateness_score}
-                onChange={(e) => updateFormData('appropriateness_score', parseInt(e.target.value))}
+            {/* ——— Step 1: Data sufficiency ——— */}
+            <section className="mb-8">
+              <h3 className="text-sm font-semibold text-slate-800 mb-4">Step 1: Data sufficiency</h3>
+              <YesNo
+                label="Is there sufficient information to complete this review?"
+                value={formData.sufficient_info}
+                onChange={(v) => update('sufficient_info', v)}
                 disabled={!canEdit}
-                colorScale="appropriateness"
-                markers={[
-                  { value: 1, label: '1 - Inappropriate' },
-                  { value: 5, label: '5 - Uncertain' },
-                  { value: 9, label: '9 - Appropriate' },
-                ]}
-                error={errors.appropriateness_score}
+                required
               />
-            </div>
-
-            {/* Surgery/Fusion Indicated */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Surgery Indicated?</label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => canEdit && updateFormData('surgery_indicated', true)}
-                    disabled={!canEdit}
-                    className={clsx(
-                      'flex-1 py-2 rounded-lg font-medium text-sm transition-colors',
-                      formData.surgery_indicated
-                        ? 'bg-green-100 text-green-700 border-2 border-green-300'
-                        : 'bg-slate-100 text-slate-600 border-2 border-transparent'
-                    )}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => canEdit && updateFormData('surgery_indicated', false)}
-                    disabled={!canEdit}
-                    className={clsx(
-                      'flex-1 py-2 rounded-lg font-medium text-sm transition-colors',
-                      !formData.surgery_indicated
-                        ? 'bg-red-100 text-red-700 border-2 border-red-300'
-                        : 'bg-slate-100 text-slate-600 border-2 border-transparent'
-                    )}
-                  >
-                    No
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Fusion Indicated?</label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => canEdit && updateFormData('fusion_indicated', true)}
-                    disabled={!canEdit}
-                    className={clsx(
-                      'flex-1 py-2 rounded-lg font-medium text-sm transition-colors',
-                      formData.fusion_indicated
-                        ? 'bg-green-100 text-green-700 border-2 border-green-300'
-                        : 'bg-slate-100 text-slate-600 border-2 border-transparent'
-                    )}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => canEdit && updateFormData('fusion_indicated', false)}
-                    disabled={!canEdit}
-                    className={clsx(
-                      'flex-1 py-2 rounded-lg font-medium text-sm transition-colors',
-                      !formData.fusion_indicated
-                        ? 'bg-red-100 text-red-700 border-2 border-red-300'
-                        : 'bg-slate-100 text-slate-600 border-2 border-transparent'
-                    )}
-                  >
-                    No
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Preferred Approach - Visual Selection */}
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-slate-700 mb-3">
-                Preferred Approach <span className="text-rose-500">*</span>
-              </label>
-              <div className="grid grid-cols-1 gap-2">
-                {PREFERRED_APPROACH_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => canEdit && updateFormData('preferred_approach', option.value)}
-                    disabled={!canEdit}
-                    className={clsx(
-                      'flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all',
-                      formData.preferred_approach === option.value
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
-                      !canEdit && 'opacity-60 cursor-not-allowed'
-                    )}
-                  >
-                    <div className={clsx(
-                      'w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
-                      formData.preferred_approach === option.value
-                        ? 'border-blue-500 bg-blue-500'
-                        : 'border-slate-300'
-                    )}>
-                      {formData.preferred_approach === option.value && (
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </div>
-                    <div>
-                      <p className={clsx(
-                        'text-sm font-medium',
-                        formData.preferred_approach === option.value ? 'text-blue-700' : 'text-slate-700'
-                      )}>
-                        {option.label}
-                      </p>
-                      <p className="text-xs text-slate-500">{option.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {errors.preferred_approach && (
-                <p className="mt-2 text-sm text-rose-600">{errors.preferred_approach}</p>
-              )}
-            </div>
-
-            {/* Outcome Questions */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Successful Outcome Likely?</label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => canEdit && updateFormData('successful_outcome_likely', true)}
-                    disabled={!canEdit}
-                    className={clsx(
-                      'flex-1 py-2 rounded-lg font-medium text-sm transition-colors',
-                      formData.successful_outcome_likely
-                        ? 'bg-green-100 text-green-700 border-2 border-green-300'
-                        : 'bg-slate-100 text-slate-600 border-2 border-transparent'
-                    )}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => canEdit && updateFormData('successful_outcome_likely', false)}
-                    disabled={!canEdit}
-                    className={clsx(
-                      'flex-1 py-2 rounded-lg font-medium text-sm transition-colors',
-                      !formData.successful_outcome_likely
-                        ? 'bg-red-100 text-red-700 border-2 border-red-300'
-                        : 'bg-slate-100 text-slate-600 border-2 border-transparent'
-                    )}
-                  >
-                    No
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Optimization Recommended?</label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => canEdit && updateFormData('optimization_recommended', true)}
-                    disabled={!canEdit}
-                    className={clsx(
-                      'flex-1 py-2 rounded-lg font-medium text-sm transition-colors',
-                      formData.optimization_recommended
-                        ? 'bg-amber-100 text-amber-700 border-2 border-amber-300'
-                        : 'bg-slate-100 text-slate-600 border-2 border-transparent'
-                    )}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => canEdit && updateFormData('optimization_recommended', false)}
-                    disabled={!canEdit}
-                    className={clsx(
-                      'flex-1 py-2 rounded-lg font-medium text-sm transition-colors',
-                      !formData.optimization_recommended
-                        ? 'bg-slate-200 text-slate-700 border-2 border-slate-300'
-                        : 'bg-slate-100 text-slate-600 border-2 border-transparent'
-                    )}
-                  >
-                    No
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Missing Data Flag */}
-            <div className="mb-8">
-              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={formData.missing_data_flag}
-                  onChange={(e) => canEdit && updateFormData('missing_data_flag', e.target.checked)}
-                  disabled={!canEdit}
-                  className="w-5 h-5 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
-                />
-                <div>
-                  <span className="text-sm font-medium text-slate-700">Missing Data Flag</span>
-                  <p className="text-xs text-slate-500">Check if important data is missing from the case</p>
-                </div>
-              </label>
-              {formData.missing_data_flag && (
-                <div className="mt-3">
+              {formData.sufficient_info === false && (
+                <div className="mt-4">
                   <DictationTextarea
-                    value={formData.missing_data_description}
-                    onChange={(value) => updateFormData('missing_data_description', value)}
-                    placeholder="Describe what data is missing... (click Dictate to use voice input)"
+                    label="Describe the information deficiencies"
+                    value={formData.info_deficiencies ?? ''}
+                    onChange={(v) => update('info_deficiencies', v)}
+                    placeholder="What is missing or insufficient?"
                     rows={3}
                     disabled={!canEdit}
-                    error={errors.missing_data_description}
-                    hint="Be specific about what additional information would help your assessment"
+                    error={errors.info_deficiencies}
                   />
+                  {canEdit && (
+                    <Button
+                      className="mt-4"
+                      onClick={handleSubmitStopped}
+                      disabled={isSubmitting || !(formData.info_deficiencies?.trim())}
+                      isLoading={isSubmitting}
+                    >
+                      Submit as stopped (insufficient data)
+                    </Button>
+                  )}
                 </div>
               )}
-            </div>
+              {showSteps2To5 && (
+                <>
+                  <div className="mt-4">
+                    <YesNo
+                      label="Was more than necessary information provided?"
+                      value={formData.more_than_necessary}
+                      onChange={(v) => update('more_than_necessary', v)}
+                      disabled={!canEdit}
+                      required
+                    />
+                  </div>
+                  {formData.more_than_necessary === true && (
+                    <div className="mt-4">
+                      <DictationTextarea
+                        label="Which items contributed to information burden?"
+                        value={formData.info_burden_items ?? ''}
+                        onChange={(v) => update('info_burden_items', v)}
+                        placeholder="Describe unnecessary or burdensome elements..."
+                        rows={2}
+                        disabled={!canEdit}
+                        error={errors.info_burden_items}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
 
-            {/* Comments with Dictation */}
-            <div className="mb-8">
-              <DictationTextarea
-                label="Comments & Recommendations"
-                value={formData.comments}
-                onChange={(value) => updateFormData('comments', value)}
-                placeholder="Additional comments, recommendations, or concerns... (click Dictate to use voice input)"
-                rows={5}
-                disabled={!canEdit}
-                hint="Include any clinical considerations, alternative approaches, or concerns about the proposed procedure"
-              />
-            </div>
+            {showSteps2To5 && (
+              <>
+                {/* ——— Step 2: Justification ——— */}
+                <section className="mb-8">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Step 2: Justification agreement</h3>
+                  <YesNo
+                    label="Do you agree with the clinical justification for the proposed plan?"
+                    value={formData.agree_justification}
+                    onChange={(v) => update('agree_justification', v)}
+                    disabled={!canEdit}
+                    required
+                  />
+                  {formData.agree_justification === false && (
+                    <div className="mt-4">
+                      <DictationTextarea
+                        label="Comment"
+                        value={formData.justification_comment ?? ''}
+                        onChange={(v) => update('justification_comment', v)}
+                        placeholder="Explain your disagreement..."
+                        rows={3}
+                        disabled={!canEdit}
+                        error={errors.justification_comment}
+                      />
+                    </div>
+                  )}
+                </section>
 
-            {/* Error message */}
-            {errors.submit && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {errors.submit}
-              </div>
+                {/* ——— Step 3: Care pathway ——— */}
+                <section className="mb-8">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Step 3: Care pathway assessment</h3>
+
+                  <YesNo
+                    label="Is the overall surgical plan acceptable?"
+                    value={formData.agree_overall_plan_acceptable}
+                    onChange={(v) => update('agree_overall_plan_acceptable', v)}
+                    disabled={!canEdit}
+                    required
+                  />
+
+                  {formData.agree_overall_plan_acceptable === true && (
+                    <div className="mt-4 space-y-4">
+                      <YesNo
+                        label="Would you personally prescribe this plan?"
+                        value={formData.would_personally_prescribe}
+                        onChange={(v) => update('would_personally_prescribe', v)}
+                        disabled={!canEdit}
+                        required
+                      />
+                      {formData.would_personally_prescribe === false && (
+                        <DictationTextarea
+                          label="Your preferred procedure"
+                          value={formData.preferred_procedure_text ?? ''}
+                          onChange={(v) => update('preferred_procedure_text', v)}
+                          placeholder="Describe your preferred approach..."
+                          rows={3}
+                          disabled={!canEdit}
+                          error={errors.preferred_procedure_text}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {formData.agree_overall_plan_acceptable === false && (
+                    <div className="mt-4 space-y-4">
+                      <YesNo
+                        label="Is any surgery needed now?"
+                        value={formData.agree_need_any_surgery_now}
+                        onChange={(v) => update('agree_need_any_surgery_now', v)}
+                        disabled={!canEdit}
+                        required
+                      />
+                      {formData.agree_need_any_surgery_now === false && (
+                        <>
+                          <YesNo
+                            label="Would the patient benefit from more nonsurgical care first?"
+                            value={formData.benefit_from_more_nonsurgical_first}
+                            onChange={(v) => update('benefit_from_more_nonsurgical_first', v)}
+                            disabled={!canEdit}
+                            required
+                          />
+                          {formData.benefit_from_more_nonsurgical_first === true && (
+                            <DictationTextarea
+                              label="Proposed nonsurgical therapies"
+                              value={formData.proposed_nonsurgical_therapies_text ?? ''}
+                              onChange={(v) => update('proposed_nonsurgical_therapies_text', v)}
+                              placeholder="e.g. PT, injections, pain management..."
+                              rows={3}
+                              disabled={!canEdit}
+                              error={errors.proposed_nonsurgical_therapies_text}
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {caseHasDecompressionPlusFusion && (
+                    <div className="mt-6 space-y-4">
+                      <h4 className="text-xs font-semibold text-slate-600 uppercase">Decompression (case includes decompression + fusion)</h4>
+                      <YesNo
+                        label="Is the decompression plan acceptable?"
+                        value={formData.agree_decompression_plan_acceptable}
+                        onChange={(v) => update('agree_decompression_plan_acceptable', v)}
+                        disabled={!canEdit}
+                        required
+                      />
+                      {formData.agree_decompression_plan_acceptable === false && (
+                        <>
+                          <YesNo
+                            label="Is any decompression needed now?"
+                            value={formData.agree_need_any_decompression_now}
+                            onChange={(v) => update('agree_need_any_decompression_now', v)}
+                            disabled={!canEdit}
+                            required
+                          />
+                          {formData.agree_need_any_decompression_now === true && (
+                            <DictationTextarea
+                              label="Suggested decompression"
+                              value={formData.suggested_decompression_text ?? ''}
+                              onChange={(v) => update('suggested_decompression_text', v)}
+                              placeholder="Describe your recommended decompression..."
+                              rows={3}
+                              disabled={!canEdit}
+                              error={errors.suggested_decompression_text}
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {caseHasFusion && (
+                    <div className="mt-6 space-y-4">
+                      <h4 className="text-xs font-semibold text-slate-600 uppercase">Fusion</h4>
+                      <YesNo
+                        label="Is the fusion plan acceptable?"
+                        value={formData.agree_fusion_plan_acceptable}
+                        onChange={(v) => update('agree_fusion_plan_acceptable', v)}
+                        disabled={!canEdit}
+                        required
+                      />
+                      {formData.agree_fusion_plan_acceptable === false && (
+                        <>
+                          <YesNo
+                            label="Is any fusion needed now?"
+                            value={formData.agree_need_any_fusion_now}
+                            onChange={(v) => update('agree_need_any_fusion_now', v)}
+                            disabled={!canEdit}
+                            required
+                          />
+                          {formData.agree_need_any_fusion_now === true && (
+                            <DictationTextarea
+                              label="Suggested fusion"
+                              value={formData.suggested_fusion_text ?? ''}
+                              onChange={(v) => update('suggested_fusion_text', v)}
+                              placeholder="Describe your recommended fusion approach..."
+                              rows={3}
+                              disabled={!canEdit}
+                              error={errors.suggested_fusion_text}
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </section>
+
+                {/* ——— Step 4: Ratings ——— */}
+                <section className="mb-8">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Step 4: Quantitative ratings</h3>
+                  <div className="mb-6">
+                    <Slider
+                      label="Appropriateness score (1–9)"
+                      min={1}
+                      max={9}
+                      step={1}
+                      value={formData.appropriateness_score ?? 5}
+                      onChange={(e) => update('appropriateness_score', parseInt(e.target.value, 10))}
+                      disabled={!canEdit}
+                      colorScale="appropriateness"
+                      markers={[
+                        { value: 1, label: '1 Inappr.' },
+                        { value: 5, label: '5 Uncertain' },
+                        { value: 9, label: '9 Appr.' },
+                      ]}
+                      error={errors.appropriateness_score}
+                    />
+                  </div>
+                  {(formData.appropriateness_score ?? 0) >= 7 && (
+                    <Slider
+                      label="Necessity score (1–9) — required when appropriateness ≥ 7"
+                      min={1}
+                      max={9}
+                      step={1}
+                      value={formData.necessity_score ?? 5}
+                      onChange={(e) => update('necessity_score', parseInt(e.target.value, 10))}
+                      disabled={!canEdit}
+                      colorScale="appropriateness"
+                      error={errors.necessity_score}
+                    />
+                  )}
+                </section>
+
+                {/* ——— Step 5: Rationale ——— */}
+                <section className="mb-8">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Step 5: Rationale factors and comments</h3>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Select all that apply</label>
+                  <div className="flex flex-wrap gap-2">
+                    {RATIONALE_FACTOR_OPTIONS.map((opt) => {
+                      const selected = (formData.rationale_factors ?? []).includes(opt.value);
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            if (!canEdit) return;
+                            const prev = formData.rationale_factors ?? [];
+                            const next = selected ? prev.filter((x) => x !== opt.value) : [...prev, opt.value];
+                            update('rationale_factors', next.length ? next : null);
+                          }}
+                          disabled={!canEdit}
+                          className={clsx(
+                            'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
+                            selected ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-slate-100 text-slate-600 border-slate-200 hover:border-slate-300'
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {(formData.rationale_factors ?? []).includes('OTHER') && (
+                    <div className="mt-4">
+                      <Input
+                        label="Please specify (Other)"
+                        value={formData.rationale_other_text ?? ''}
+                        onChange={(e) => update('rationale_other_text', e.target.value)}
+                        placeholder="Describe..."
+                        disabled={!canEdit}
+                      />
+                    </div>
+                  )}
+                  <div className="mt-4">
+                    <DictationTextarea
+                      label="Final comments (optional, ~500 words max)"
+                      value={formData.final_comments ?? ''}
+                      onChange={(v) => update('final_comments', v)}
+                      placeholder="Additional context or recommendations..."
+                      rows={4}
+                      disabled={!canEdit}
+                    />
+                  </div>
+                </section>
+              </>
             )}
 
-            {/* Action Buttons */}
+            {errors.submit && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{errors.submit}</div>
+            )}
+
             {canEdit && (
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-                <Button
-                  variant="secondary"
-                  onClick={handleSaveDraft}
-                  disabled={isSaving || isSubmitting}
-                  isLoading={isSaving}
-                >
+                <Button variant="secondary" onClick={handleSaveDraft} disabled={isSaving || isSubmitting} isLoading={isSaving}>
                   Save Draft
                 </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSaving || isSubmitting}
-                  isLoading={isSubmitting}
-                >
-                  Submit Review
-                </Button>
+                {showSteps2To5 && (
+                  <Button onClick={handleSubmitFull} disabled={isSaving || isSubmitting} isLoading={isSubmitting}>
+                    Submit Review
+                  </Button>
+                )}
               </div>
             )}
           </Card>
 
-          {/* Scoring Guide */}
+          {/* Scoring guide */}
           <Card>
-            <CardHeader>Scoring Guide</CardHeader>
+            <CardHeader>Scoring guide</CardHeader>
             <div className="space-y-3 text-sm">
               <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-                <div className="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-                  7-9
-                </div>
+                <div className="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center text-white font-bold flex-shrink-0">7–9</div>
                 <div>
                   <p className="font-medium text-green-800">Appropriate</p>
-                  <p className="text-green-700 text-xs">Procedure is appropriate for clinical indications</p>
+                  <p className="text-green-700 text-xs">Procedure is appropriate for clinical indications. Necessity score is required.</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg">
-                <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-                  4-6
-                </div>
+                <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold flex-shrink-0">4–6</div>
                 <div>
                   <p className="font-medium text-amber-800">Uncertain</p>
-                  <p className="text-amber-700 text-xs">May be appropriate depending on circumstances</p>
+                  <p className="text-amber-700 text-xs">May be appropriate depending on circumstances. Necessity is not collected.</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
-                <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-                  1-3
-                </div>
+                <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center text-white font-bold flex-shrink-0">1–3</div>
                 <div>
                   <p className="font-medium text-red-800">Inappropriate</p>
-                  <p className="text-red-700 text-xs">Procedure is not appropriate for this scenario</p>
+                  <p className="text-red-700 text-xs">Procedure is not appropriate for this scenario.</p>
                 </div>
               </div>
             </div>
@@ -645,9 +722,8 @@ export function ReviewWorkspace({ review, caseData, canEdit, profile }: ReviewWo
   );
 }
 
-// Helper functions
-function formatLegVsBack(value?: string): string {
-  switch (value) {
+function formatLegVsBack(v?: string): string {
+  switch (v) {
     case 'leg_dominant': return 'Leg Dominant';
     case 'back_dominant': return 'Back Dominant';
     case 'equal': return 'Equal';
@@ -655,31 +731,41 @@ function formatLegVsBack(value?: string): string {
   }
 }
 
-function formatNeuroDeficit(key: string): string {
-  switch (key) {
-    case 'motor_weakness': return 'Motor Weakness';
-    case 'sensory_loss': return 'Sensory Loss';
-    case 'gait_instability': return 'Gait Instability';
-    case 'bowel_bladder': return 'Bowel/Bladder';
-    default: return key.replace(/_/g, ' ');
-  }
+function formatNeuroDeficits(nd: NeuroDeficits): React.ReactNode {
+  const entries = nd ? Object.entries(nd).filter(([, v]) => v) : [];
+  if (entries.length === 0) return <span className="text-slate-400 text-sm">None reported</span>;
+  return (
+    <>
+      {entries.map(([key]) => (
+        <span key={key} className="px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">
+          {key === 'motor_weakness' ? 'Motor' : key === 'sensory_loss' ? 'Sensory' : key === 'gait_instability' ? 'Gait' : key === 'bowel_bladder' ? 'Bowel/Bladder' : key.replace(/_/g, ' ')}
+        </span>
+      ))}
+    </>
+  );
 }
 
-function formatComorbidities(comorbidities: Comorbidities): string[] {
+function formatComorbidities(c: Comorbidities): React.ReactNode {
   const items: string[] = [];
-  if (comorbidities.diabetes) items.push('Diabetes');
-  if (comorbidities.smoker) items.push('Smoker');
-  if (comorbidities.obesity) items.push('Obesity');
-  if (comorbidities.heart_disease) items.push('Heart Disease');
-  if (comorbidities.osteoporosis) items.push('Osteoporosis');
-  if (comorbidities.other) items.push(comorbidities.other);
-  return items;
+  if (c?.diabetes) items.push('Diabetes');
+  if (c?.smoker) items.push('Smoker');
+  if (c?.obesity) items.push('Obesity');
+  if (c?.heart_disease) items.push('Heart Disease');
+  if (c?.osteoporosis) items.push('Osteoporosis');
+  if (c?.other) items.push(c.other);
+  if (items.length === 0) return <span className="text-slate-400 text-sm">None reported</span>;
+  return items.map((x, i) => (
+    <span key={i} className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-medium">{x}</span>
+  ));
 }
 
-function formatConservativeCare(care: ConservativeCare): string[] {
+function formatConservativeCare(cc: ConservativeCare): React.ReactNode {
   const items: string[] = [];
-  if (care.pt_tried) items.push('Physical Therapy');
-  if (care.meds) items.push('Medications');
-  if (care.injections) items.push('Injections');
-  return items;
+  if (cc?.pt_tried) items.push('Physical Therapy');
+  if (cc?.meds) items.push('Medications');
+  if (cc?.injections) items.push('Injections');
+  if (items.length === 0) return <span className="text-slate-400 text-sm">None reported</span>;
+  return items.map((x, i) => (
+    <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">{x}</span>
+  ));
 }

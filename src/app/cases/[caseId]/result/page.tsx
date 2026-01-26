@@ -138,7 +138,7 @@ export default async function CaseResultPage({ params }: CaseResultPageProps) {
     .from('case_results')
     .select('*')
     .eq('case_id', caseId)
-    .single();
+    .maybeSingle();
 
   if (resultError || !caseResultData) {
     return (
@@ -166,15 +166,21 @@ export default async function CaseResultPage({ params }: CaseResultPageProps) {
     .from('reviews')
     .select(`
       id,
-      appropriateness_score, 
-      surgery_indicated, 
-      fusion_indicated, 
-      preferred_approach, 
-      successful_outcome_likely,
-      optimization_recommended,
-      missing_data_flag,
-      missing_data_description,
-      comments,
+      appropriateness_score,
+      agree_overall_plan_acceptable,
+      agree_need_any_surgery_now,
+      agree_decompression_plan_acceptable,
+      agree_need_any_decompression_now,
+      suggested_decompression_text,
+      agree_fusion_plan_acceptable,
+      agree_need_any_fusion_now,
+      suggested_fusion_text,
+      would_personally_prescribe,
+      preferred_procedure_text,
+      benefit_from_more_nonsurgical_first,
+      proposed_nonsurgical_therapies_text,
+      justification_comment,
+      final_comments,
       created_at,
       updated_at,
       reviewer:profiles!reviewer_id(id, name, email, specialties)
@@ -183,7 +189,26 @@ export default async function CaseResultPage({ params }: CaseResultPageProps) {
     .eq('status', 'SUBMITTED')
     .order('created_at', { ascending: true });
 
-  const submittedReviews = (reviews || []) as Array<Pick<Review, 'id' | 'appropriateness_score' | 'surgery_indicated' | 'fusion_indicated' | 'preferred_approach' | 'successful_outcome_likely' | 'optimization_recommended' | 'missing_data_flag' | 'missing_data_description' | 'comments' | 'created_at' | 'updated_at'> & {
+  const submittedReviews = (reviews || []) as Array<Pick<Review,
+    | 'id'
+    | 'appropriateness_score'
+    | 'agree_overall_plan_acceptable'
+    | 'agree_need_any_surgery_now'
+    | 'agree_decompression_plan_acceptable'
+    | 'agree_need_any_decompression_now'
+    | 'suggested_decompression_text'
+    | 'agree_fusion_plan_acceptable'
+    | 'agree_need_any_fusion_now'
+    | 'suggested_fusion_text'
+    | 'would_personally_prescribe'
+    | 'preferred_procedure_text'
+    | 'benefit_from_more_nonsurgical_first'
+    | 'proposed_nonsurgical_therapies_text'
+    | 'justification_comment'
+    | 'final_comments'
+    | 'created_at'
+    | 'updated_at'
+  > & {
     reviewer?: { id: string; name: string; email: string; specialties: string[] } | null;
   }>;
 
@@ -346,10 +371,31 @@ export default async function CaseResultPage({ params }: CaseResultPageProps) {
 
                 {/* Assessment Details Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  {(() => {
+                    const surgeryNeededNow = review.agree_overall_plan_acceptable === true
+                      ? true
+                      : review.agree_overall_plan_acceptable === false
+                        ? review.agree_need_any_surgery_now
+                        : null;
+                    const decompressionNeededNow = review.agree_decompression_plan_acceptable === true
+                      ? true
+                      : review.agree_decompression_plan_acceptable === false
+                        ? review.agree_need_any_decompression_now
+                        : null;
+                    const fusionNeededNow = review.agree_fusion_plan_acceptable === true
+                      ? true
+                      : review.agree_fusion_plan_acceptable === false
+                        ? review.agree_need_any_fusion_now
+                        : null;
+                    const showDecompressionCard = review.agree_decompression_plan_acceptable != null || review.agree_need_any_decompression_now != null;
+                    const showFusionCard = review.agree_fusion_plan_acceptable != null || review.agree_need_any_fusion_now != null;
+
+                    return (
+                      <>
                   <div className="flex items-center gap-3 p-3 bg-white rounded-md border border-slate-200">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${review.surgery_indicated ? 'bg-green-100' : 'bg-red-100'}`}>
-                      <svg className={`w-5 h-5 ${review.surgery_indicated ? 'text-green-600' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        {review.surgery_indicated ? (
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${review.agree_overall_plan_acceptable ? 'bg-green-100' : 'bg-red-100'}`}>
+                      <svg className={`w-5 h-5 ${review.agree_overall_plan_acceptable ? 'text-green-600' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        {review.agree_overall_plan_acceptable ? (
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         ) : (
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -357,17 +403,17 @@ export default async function CaseResultPage({ params }: CaseResultPageProps) {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Surgery Indicated</p>
-                      <p className={`font-semibold ${review.surgery_indicated ? 'text-green-700' : 'text-red-700'}`}>
-                        {review.surgery_indicated ? 'Yes' : 'No'}
+                      <p className="text-xs text-slate-500">Overall Plan</p>
+                      <p className={`font-semibold ${review.agree_overall_plan_acceptable ? 'text-green-700' : 'text-red-700'}`}>
+                        {review.agree_overall_plan_acceptable ? 'Acceptable' : 'Unacceptable'}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3 p-3 bg-white rounded-md border border-slate-200">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${review.fusion_indicated ? 'bg-green-100' : 'bg-red-100'}`}>
-                      <svg className={`w-5 h-5 ${review.fusion_indicated ? 'text-green-600' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        {review.fusion_indicated ? (
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${surgeryNeededNow ? 'bg-green-100' : 'bg-red-100'}`}>
+                      <svg className={`w-5 h-5 ${surgeryNeededNow ? 'text-green-600' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        {surgeryNeededNow ? (
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         ) : (
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -375,81 +421,117 @@ export default async function CaseResultPage({ params }: CaseResultPageProps) {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Fusion Indicated</p>
-                      <p className={`font-semibold ${review.fusion_indicated ? 'text-green-700' : 'text-red-700'}`}>
-                        {review.fusion_indicated ? 'Yes' : 'No'}
+                      <p className="text-xs text-slate-500">Surgery Needed Now</p>
+                      <p className={`font-semibold ${surgeryNeededNow ? 'text-green-700' : 'text-red-700'}`}>
+                        {surgeryNeededNow == null ? '—' : surgeryNeededNow ? 'Yes' : 'No'}
                       </p>
                     </div>
                   </div>
 
-                  {review.preferred_approach && (
+                  {showDecompressionCard && (
                     <div className="flex items-center gap-3 p-3 bg-white rounded-md border border-slate-200">
-                      <div className="w-10 h-10 rounded-lg bg-[#4A6FA5]/10 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-[#4A6FA5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${decompressionNeededNow ? 'bg-green-100' : 'bg-red-100'}`}>
+                        <svg className={`w-5 h-5 ${decompressionNeededNow ? 'text-green-600' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          {decompressionNeededNow ? (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          ) : (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          )}
                         </svg>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Preferred Approach</p>
-                        <p className="font-semibold text-[#0E1A26]">{formatApproach(review.preferred_approach)}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {review.successful_outcome_likely !== undefined && (
-                    <div className="flex items-center gap-3 p-3 bg-white rounded-md border border-slate-200">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${review.successful_outcome_likely ? 'bg-green-100' : 'bg-amber-100'}`}>
-                        <svg className={`w-5 h-5 ${review.successful_outcome_likely ? 'text-green-600' : 'text-amber-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-500">Successful Outcome</p>
-                        <p className={`font-semibold ${review.successful_outcome_likely ? 'text-green-700' : 'text-amber-700'}`}>
-                          {review.successful_outcome_likely ? 'Likely' : 'Uncertain'}
+                        <p className="text-xs text-slate-500">Decompression Now</p>
+                        <p className={`font-semibold ${decompressionNeededNow ? 'text-green-700' : 'text-red-700'}`}>
+                          {decompressionNeededNow == null ? '—' : decompressionNeededNow ? 'Yes' : 'No'}
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {review.optimization_recommended !== undefined && (
+                  {showFusionCard && (
                     <div className="flex items-center gap-3 p-3 bg-white rounded-md border border-slate-200">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${review.optimization_recommended ? 'bg-amber-100' : 'bg-green-100'}`}>
-                        <svg className={`w-5 h-5 ${review.optimization_recommended ? 'text-amber-600' : 'text-green-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${fusionNeededNow ? 'bg-green-100' : 'bg-red-100'}`}>
+                        <svg className={`w-5 h-5 ${fusionNeededNow ? 'text-green-600' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          {fusionNeededNow ? (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          ) : (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          )}
                         </svg>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Optimization</p>
-                        <p className={`font-semibold ${review.optimization_recommended ? 'text-amber-700' : 'text-green-700'}`}>
-                          {review.optimization_recommended ? 'Recommended' : 'Not Needed'}
+                        <p className="text-xs text-slate-500">Fusion Now</p>
+                        <p className={`font-semibold ${fusionNeededNow ? 'text-green-700' : 'text-red-700'}`}>
+                          {fusionNeededNow == null ? '—' : fusionNeededNow ? 'Yes' : 'No'}
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {review.missing_data_flag && (
-                    <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-md border border-amber-200">
-                      <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  {review.would_personally_prescribe != null && (
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-md border border-slate-200">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${review.would_personally_prescribe ? 'bg-green-100' : 'bg-red-100'}`}>
+                        <svg className={`w-5 h-5 ${review.would_personally_prescribe ? 'text-green-600' : 'text-red-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          {review.would_personally_prescribe ? (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          ) : (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          )}
                         </svg>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-xs text-slate-500">Missing Data Noted</p>
-                        {review.missing_data_description && (
-                          <p className="text-sm text-amber-700 mt-1">{review.missing_data_description}</p>
-                        )}
+                      <div>
+                        <p className="text-xs text-slate-500">Would Prescribe</p>
+                        <p className={`font-semibold ${review.would_personally_prescribe ? 'text-green-700' : 'text-red-700'}`}>
+                          {review.would_personally_prescribe ? 'Yes' : 'No'}
+                        </p>
                       </div>
                     </div>
                   )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Comments */}
-                {review.comments && (
+                {review.preferred_procedure_text && (
                   <div className="mt-4 p-4 bg-white rounded-md border border-slate-200">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Clinical Comments</p>
-                    <p className="text-[#3A4754] leading-relaxed">{review.comments}</p>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Preferred Procedure</p>
+                    <p className="text-[#3A4754] leading-relaxed">{review.preferred_procedure_text}</p>
+                  </div>
+                )}
+
+                {review.proposed_nonsurgical_therapies_text && (
+                  <div className="mt-4 p-4 bg-amber-50 rounded-md border border-amber-200">
+                    <p className="text-xs font-medium text-amber-700 uppercase tracking-wide mb-2">Proposed Nonsurgical Therapies</p>
+                    <p className="text-amber-800 leading-relaxed">{review.proposed_nonsurgical_therapies_text}</p>
+                  </div>
+                )}
+
+                {review.suggested_decompression_text && (
+                  <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-200">
+                    <p className="text-xs font-medium text-blue-700 uppercase tracking-wide mb-2">Suggested Decompression</p>
+                    <p className="text-blue-800 leading-relaxed">{review.suggested_decompression_text}</p>
+                  </div>
+                )}
+
+                {review.suggested_fusion_text && (
+                  <div className="mt-4 p-4 bg-purple-50 rounded-md border border-purple-200">
+                    <p className="text-xs font-medium text-purple-700 uppercase tracking-wide mb-2">Suggested Fusion</p>
+                    <p className="text-purple-800 leading-relaxed">{review.suggested_fusion_text}</p>
+                  </div>
+                )}
+
+                {review.justification_comment && (
+                  <div className="mt-4 p-4 bg-slate-50 rounded-md border border-slate-200">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Justification Comment</p>
+                    <p className="text-[#3A4754] leading-relaxed">{review.justification_comment}</p>
+                  </div>
+                )}
+
+                {review.final_comments && (
+                  <div className="mt-4 p-4 bg-white rounded-md border border-slate-200">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Final Comments</p>
+                    <p className="text-[#3A4754] leading-relaxed">{review.final_comments}</p>
                   </div>
                 )}
 
@@ -505,21 +587,3 @@ export default async function CaseResultPage({ params }: CaseResultPageProps) {
     </AppLayout>
   );
 }
-
-function formatApproach(approach: string): string {
-  switch (approach) {
-    case 'DECOMPRESSION_ONLY':
-      return 'Decompression Only';
-    case 'PLF':
-      return 'PLF';
-    case 'TLIF':
-      return 'TLIF';
-    case 'ALIF':
-      return 'ALIF';
-    case 'OTHER':
-      return 'Other';
-    default:
-      return approach;
-  }
-}
-
