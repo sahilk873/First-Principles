@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/admin';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Profile, Organization } from '@/types/database';
 import { ClinicianDashboard } from './_components/ClinicianDashboard';
@@ -10,6 +11,7 @@ import { createProfileIfMissing } from '@/lib/utils/createProfileIfMissing';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const adminSupabase = createServiceRoleClient();
 
   // Get the current user
   const {
@@ -62,7 +64,7 @@ export default async function DashboardPage() {
   }
 
   // Fetch the organization
-  const { data: orgData, error: orgError } = await supabase
+  const { data: orgData, error: orgError } = await adminSupabase
     .from('organizations')
     .select('*')
     .eq('id', profile.org_id)
